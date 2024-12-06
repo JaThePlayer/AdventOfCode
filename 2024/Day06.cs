@@ -264,7 +264,7 @@ public class Day06 : AdventBase
         return checker.Count; // 5212
     }
     
-    protected override unsafe object Part2Impl()
+    protected override object Part2Impl()
     {
         var input = Input.Text.AsSpan();
         var lineWidth = input.IndexOf('\n') + 1;
