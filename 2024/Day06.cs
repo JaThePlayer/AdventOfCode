@@ -69,6 +69,24 @@ Stackalloc the buffers
 |------- |------------:|----------:|----------:|----------:|
 | Part1  |    10.45 us |  0.069 us |  0.064 us |      24 B |
 | Part2  | 7,947.52 us | 47.033 us | 43.995 us |      26 B |
+
+Fastpath for xDir>0
+| Method | Mean         | Error      | StdDev     | Allocated |
+|------- |-------------:|-----------:|-----------:|----------:|
+| Part1  |     8.140 us |  0.0610 us |  0.0541 us |      24 B |
+| Part2  | 7,142.807 us | 36.5392 us | 32.3910 us |      27 B |
+
+Fastpath for xDir!=0
+| Method | Mean         | Error      | StdDev     | Allocated |
+|------- |-------------:|-----------:|-----------:|----------:|
+| Part1  |     7.552 us |  0.0141 us |  0.0125 us |      24 B |
+| Part2  | 6,549.366 us | 18.0962 us | 16.0418 us |      27 B |
+
+Fast path for yDir!=0 - everything is a fast path now
+| Method | Mean         | Error      | StdDev     | Allocated |
+|------- |-------------:|-----------:|-----------:|----------:|
+| Part1  |     6.659 us |  0.0402 us |  0.0336 us |      24 B |
+| Part2  | 5,931.789 us | 26.5665 us | 24.8504 us |      27 B |
  */
 public class Day06 : AdventBase
 {
@@ -113,35 +131,74 @@ public class Day06 : AdventBase
         
         while (true)
         {
-            ref var tileVisit = ref visited.DangerousGetReferenceAt(gy, gx);
-            if (checker.HadVisited(ref tileVisit, guardDir))
+            ogDir = guardDir;
+            if (dirX != 0)
             {
-                if (checker.ShouldEndAtLoop())
-                    return SimulationResult.Loop;
-            }
-            else
-            {
-                checker.OnNewVisit(ref tileVisit, guardDir, gx, gy, ogDir, ogx, ogy);
-            }
-            checker.MarkVisited(ref tileVisit, guardDir);
-            (ogx, ogy, ogDir) = (gx, gy, guardDir);
-
-            var (ngx, ngy) = (gx+dirX, gy+dirY);
-
-            // OOB check
-            if ((uint)ngx >= span.Width || (uint)ngy >= span.Height)
-                return SimulationResult.Exit;
-
-            if (span.DangerousGetReferenceAt(ngy, ngx) != '#')
-            {
-                // valid move
-                (gx, gy) = (ngx, ngy);
+                // Horizontal movement - use IndexOf to benefit from SIMD
+                ogy = gy;
+                int steps;
+                if (dirX > 0)
+                {
+                    // going right
+                    var curRow = span.GetRowSpan(gy)[gx..];
+                    steps = curRow.IndexOf('#');
+                    if (steps == -1)
+                        steps = curRow.Length;
+                    steps += gx;
+                }
+                else
+                {
+                    // left
+                    steps = span.GetRowSpan(gy)[..gx].LastIndexOf('#');
+                }
+                var visitedRow = visited.GetRowSpan(gy);
+                while (gx != steps)
+                {
+                    if (VisitTile(ref checker, ref visitedRow.DangerousGetReferenceAt(gx)))
+                        return SimulationResult.Loop;
+                    ogx = gx;
+                    gx += dirX;
+                }
+                if ((uint)gx >= span.Width)
+                    return SimulationResult.Exit;
+                // obstacle, rotate by 90
+                gx += -dirX;
+                guardDir = Rotate(guardDir);
+                (dirX, dirY) = GetMovementVector(guardDir);
                 continue;
             }
+            // vertical
+            ogx = gx;
+            while (true)
+            {
+                if (VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx)))
+                    return SimulationResult.Loop;
+                ogy = gy;
+                gy += dirY;
+                if ((uint)gy >= span.Height)
+                    return SimulationResult.Exit;
+                if (span.DangerousGetReferenceAt(gy, gx) != '#')
+                    continue;
+                // obstacle, rotate by 90
+                gy -= dirY;
+                guardDir = Rotate(guardDir);
+                (dirX, dirY) = GetMovementVector(guardDir);
+                break;
+            }
+        }
 
-            // obstacle, rotate by 90
-            guardDir = Rotate(guardDir);
-            (dirX, dirY) = GetMovementVector(guardDir);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool VisitTile(ref TChecker checker, ref T tileVisit)
+        {
+            if (checker.HadVisited(ref tileVisit, guardDir))
+            {
+                checker.MarkVisited(ref tileVisit, guardDir);
+                return checker.ShouldEndAtLoop();
+            }
+            
+            checker.OnNewVisit(ref tileVisit, guardDir, gx, gy, ogDir, ogx, ogy);
+            checker.MarkVisited(ref tileVisit, guardDir);
+            return false;
         }
     }
 
