@@ -39,6 +39,12 @@ Start recursing from the 2nd number instead of the 1st
 |------- |------------:|---------:|---------:|----------:|
 | Part1  |    414.6 us |  1.57 us |  1.47 us |     144 B |
 | Part2  | 12,184.9 us | 72.11 us | 67.46 us |     150 B |
+
+Remove fast path in TryGetOne
+| Method | Mean        | Error    | StdDev   | Allocated |
+|------- |------------:|---------:|---------:|----------:|
+| Part1  |    408.0 us |  1.51 us |  1.34 us |     144 B |
+| Part2  | 11,660.2 us | 67.99 us | 63.60 us |     150 B |
 */
 public class Day07 : AdventBase
 {
@@ -98,15 +104,13 @@ public class Day07 : AdventBase
             [var first, .. var remaining] => TryDispatch(target, current, first, remaining)
         };
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static bool TryOnlyOne(ulong target, ulong current, ulong only)
         {
-            // if addition is too strong, the only option is that 'current == target' and 'only' is 1.
-            if (current + only > target)
-                return current * only == target;
-            
             return current + only == target || current * only == target || Concat(current, only) == target;
         }
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static bool TryDispatch(ulong target, ulong current, ulong next, Span<ulong> remaining)
         {
             // Addition is too strong already, only option is that current == target and all remaining nums are 1.
