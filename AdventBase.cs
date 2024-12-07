@@ -15,7 +15,7 @@ public abstract class AdventBase
     public AdventFile Input => _input ??= new($"{ProjectRoot}/{Year}/Inputs/{(Day >= 10 ? Day.ToString() : $"0{Day}")}.txt");
     public AdventFile ExampleInput => _exampleInput ??= new($"{ProjectRoot}/{Year}/Inputs/{(Day < 10 ? Day.ToString() : $"0{Day}")}.example.txt");
 
-    [Benchmark]
+   // [Benchmark]
     public object Part1() => Part1Impl();
     
     protected abstract object Part1Impl();
