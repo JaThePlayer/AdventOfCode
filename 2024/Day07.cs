@@ -33,6 +33,12 @@ TryDispatch: early return when addition is too large
 | Method | Mean     | Error    | StdDev   | Allocated |
 |------- |---------:|---------:|---------:|----------:|
 | Part2  | 26.70 ms | 0.128 ms | 0.120 ms |     316 B |
+
+Start recursing from the 2nd number instead of the 1st
+| Method | Mean        | Error    | StdDev   | Allocated |
+|------- |------------:|---------:|---------:|----------:|
+| Part1  |    414.6 us |  1.57 us |  1.47 us |     144 B |
+| Part2  | 12,184.9 us | 72.11 us | 67.46 us |     150 B |
 */
 public class Day07 : AdventBase
 {
@@ -74,7 +80,7 @@ public class Day07 : AdventBase
 
         foreach (var (num, numbers) in Parse(input, buffer))
         {
-            sum += TryPart1(num, 0, numbers) ? num : 0;
+            sum += TryPart1(num, numbers[0], numbers[1..]) ? num : 0;
         }
 
         return sum; // 3351424677624
@@ -123,7 +129,7 @@ public class Day07 : AdventBase
 
         foreach (var (num, numbers) in Parse(input, buffer))
         {
-            sum += TryPart2(num, 0, numbers) ? num : 0;
+            sum += TryPart2(num, numbers[0], numbers[1..]) ? num : 0;
         }
 
         return sum; // 204976636995111
