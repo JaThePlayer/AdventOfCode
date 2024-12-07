@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using CommunityToolkit.HighPerformance;
 
 namespace AoC._2024;
@@ -52,22 +53,23 @@ public class Day04 : AdventBase
         var height = span.Height;
         var count = 0;
 
-        for (int y = 0; y < height; y += 1)
+        for (var y = 0; y < height; y++)
         {
-            for (int x = 0; x < lineWidth - 1; x += 1) // -1 as we're skipping the newline character
+            var row = span.GetRowSpan(y)[..(lineWidth-1)];
+            for (var x = 0; x < lineWidth - 1; x++) // -1 as we're skipping the newline character
             {
-                var at = span[y, x];
+                var at = row.DangerousGetReferenceAt(x);
                 if (at is not ('X' or 'S'))
                     continue;
 
                 if (x < lineWidth - 3)
                 {
                     // can move right
-                    var row = span.GetRowSpan(y)[(x+1)..];
+                    var rowSlice = row[(x+1)..];
                     if (at switch
                         {
-                            'X' => row.StartsWith("MAS"),
-                            _ => row.StartsWith("AMX"),
+                            'X' => rowSlice.StartsWith("MAS"),
+                            _ => rowSlice.StartsWith("AMX"),
                         })
                         count++;
                     if (y < height - 3 && CheckDiagonal(span, x, y, 1, 1, at))
@@ -80,6 +82,7 @@ public class Day04 : AdventBase
                     count++;
             }
             
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             static bool CheckDiagonal(ReadOnlySpan2D<char> span, int x, int y, int stepX, int stepY, char first)
             {
                 if (first == 'X')
@@ -89,15 +92,11 @@ public class Day04 : AdventBase
                            && span.DangerousGetReferenceAt(y += stepY, x += stepX) is 'A'
                            && span.DangerousGetReferenceAt(y + stepY, x + stepX) is 'S';
                 }
-                if (first == 'S')
-                {
-                    // search for 'AMX'
-                    return span.DangerousGetReferenceAt(y += stepY, x += stepX) is 'A'
-                           && span.DangerousGetReferenceAt(y += stepY, x += stepX) is 'M'
-                           && span.DangerousGetReferenceAt(y + stepY, x + stepX) is 'X';
-                }
 
-                return false;
+                // search for 'AMX'
+                return span.DangerousGetReferenceAt(y += stepY, x += stepX) is 'A'
+                       && span.DangerousGetReferenceAt(y += stepY, x += stepX) is 'M'
+                       && span.DangerousGetReferenceAt(y + stepY, x + stepX) is 'X';
             }
         }
         
