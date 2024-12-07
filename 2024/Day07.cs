@@ -51,7 +51,7 @@ public class Day07 : AdventBase
     public override int Year => 2024;
     public override int Day => 7;
 
-    private static LinqExt.SplitParser<char, Span<ulong>, RefTuple<ulong, Span<ulong>>> Parse(ReadOnlySpan<char> input,
+    protected static LinqExt.SplitParser<char, Span<ulong>, RefTuple<ulong, Span<ulong>>> Parse(ReadOnlySpan<char> input,
         Span<ulong> buffer)
     {
         return input.ParseSplits('\n', buffer, static (line, buffer) =>
@@ -141,7 +141,7 @@ public class Day07 : AdventBase
 
     // From System.Buffers.Text.FormattingHelpers.CountDigits
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int CountDigits(ulong value)
+    protected static int CountDigits(ulong value)
     {
         // Map the log2(value) to a power of 10.
         ReadOnlySpan<byte> log2ToPow10 =
@@ -187,8 +187,9 @@ public class Day07 : AdventBase
         bool lessThan = value < powerOf10;
         return (int)(index - Unsafe.As<bool, byte>(ref lessThan)); // while arbitrary bools may be non-0/1, comparison operators are expected to return 0/1
     }
-    
-    private static ulong Concat(ulong left, ulong right)
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected static ulong PowerOf10(ulong value)
     {
         ReadOnlySpan<ulong> digitsToPowOf10 =
         [
@@ -214,6 +215,9 @@ public class Day07 : AdventBase
             10000000000000000000,
         ];
 
-        return left * Unsafe.Add(ref MemoryMarshal.GetReference(digitsToPowOf10), CountDigits(right)) + right;
+        return Unsafe.Add(ref MemoryMarshal.GetReference(digitsToPowOf10), CountDigits(value));
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected static ulong Concat(ulong left, ulong right) => left * PowerOf10(right) + right;
 }
