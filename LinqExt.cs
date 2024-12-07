@@ -51,7 +51,20 @@ public static class LinqExt
     {
         return new(arr, separator);
     }
-    
+
+    public static bool SplitTwo<T>(this ReadOnlySpan<T> input, T sep, out ReadOnlySpan<T> left, out ReadOnlySpan<T> right) where T : IEquatable<T>
+    {
+        var idx = input.IndexOf(sep);
+        if (idx == -1) {
+            left = input;
+            right = ReadOnlySpan<T>.Empty;
+            return false;
+        }
+
+        left = input[..idx];
+        right = input[(idx + 1)..];
+        return true;
+    }
     
     
     public ref struct SplitParser<TInput, TState, TResult>(
