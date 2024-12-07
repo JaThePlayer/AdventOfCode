@@ -45,7 +45,7 @@ public class Day07Backwards : Day07
             [.. var remaining, var last]
                 when ulong.DivRem(target, last) is (var q, 0) && TryPart2(q, remaining) => true,
             [.. var remaining, var last]
-                when ulong.DivRem(target - last, PowerOf10(last)) is (var q, 0) && TryPart2(q, remaining) => true,
+                when ulong.DivRem(target - last, last.NextPowerOf10()) is (var q, 0) && TryPart2(q, remaining) => true,
             [.. var remaining, var last] => TryPart2(target - last, remaining),
         };
     }
