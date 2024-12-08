@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 
 namespace AoC;
 
@@ -86,4 +88,16 @@ public static class Util
         }
         return buffer[..i];
     }
+
+    public static void LogAsJson<T>(this T a)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(a, _opts));
+    }
+
+    private static readonly JsonSerializerOptions _opts = new()
+    {
+        IncludeFields = true,
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 }

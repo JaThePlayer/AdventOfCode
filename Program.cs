@@ -10,8 +10,6 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using Spectre.Console;
 
-new Day01().Part1();
-
 AdventBase[] days = [
     new Day01(),
     new Day02(),
@@ -20,15 +18,14 @@ AdventBase[] days = [
     new Day05(),
     new Day06(),
     new Day07Backwards(),
+    new Day08(),
 ];
 
-/*
-var day = days[^1];
+var day = days[8 - 1];
 Console.WriteLine(day.Part1());
 Console.WriteLine(day.Part2());
 day.Benchmark();
 return;
-*/
 
 var t = new Spectre.Console.Table()
     .AddColumn("Day")
