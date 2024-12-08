@@ -87,6 +87,19 @@ Fast path for yDir!=0 - everything is a fast path now
 |------- |-------------:|-----------:|-----------:|----------:|
 | Part1  |     6.659 us |  0.0402 us |  0.0336 us |      24 B |
 | Part2  | 5,931.789 us | 26.5665 us | 24.8504 us |      27 B |
+
+Part 2: in the inner Simulate function, only update and check the visited set when hitting a wall, not every step
+(Thanks to woofdoggo on celestecord for the idea)
+| Method | Mean         | Error      | StdDev     | Allocated |
+|------- |-------------:|-----------:|-----------:|----------:|
+| Part1  |     6.811 us |  0.0595 us |  0.0556 us |      24 B |
+| Part2  | 4,261.634 us | 39.3663 us | 36.8233 us |      27 B |
+
+NeedsToVisitEachLocation
+| Method | Mean         | Error      | StdDev     | Allocated |
+|------- |-------------:|-----------:|-----------:|----------:|
+| Part1  |     6.689 us |  0.0578 us |  0.0541 us |      24 B |
+| Part2  | 2,956.064 us | 13.8153 us | 12.9228 us |      24 B |
  */
 public class Day06 : AdventBase
 {
@@ -112,12 +125,14 @@ public class Day06 : AdventBase
     private interface IChecker<T>
     {
         public bool HadVisited(ref T visited, Direction dir);
-
-        public bool ShouldEndAtLoop();
+        
+        public bool NeedsToVisitEachLocation();
         
         public void MarkVisited(ref T visited, Direction dir);
 
         public void OnNewVisit(ref T visited, Direction dir, int gx, int gy, Direction ogDir, int ogx, int ogy);
+
+        public bool LoopsOnRotation(ref T visited, Direction dir);
     }
 
     private static SimulationResult Simulate<T, TChecker>(Span2D<T> visited, ref TChecker checker, ReadOnlySpan2D<char> span, 
@@ -136,33 +151,43 @@ public class Day06 : AdventBase
             {
                 // Horizontal movement - use IndexOf to benefit from SIMD
                 ogy = gy;
-                int steps;
+                int targetX;
                 if (dirX > 0)
                 {
                     // going right
                     var curRow = span.GetRowSpan(gy)[gx..];
-                    steps = curRow.IndexOf('#');
-                    if (steps == -1)
-                        steps = curRow.Length;
-                    steps += gx;
+                    targetX = curRow.IndexOf('#');
+                    if (targetX == -1)
+                        targetX = curRow.Length;
+                    targetX += gx;
                 }
                 else
                 {
                     // left
-                    steps = span.GetRowSpan(gy)[..gx].LastIndexOf('#');
+                    targetX = span.GetRowSpan(gy)[..gx].LastIndexOf('#');
                 }
                 var visitedRow = visited.GetRowSpan(gy);
-                while (gx != steps)
+                if (checker.NeedsToVisitEachLocation())
                 {
-                    if (VisitTile(ref checker, ref visitedRow.DangerousGetReferenceAt(gx)))
-                        return SimulationResult.Loop;
-                    ogx = gx;
-                    gx += dirX;
+                    while (gx != targetX)
+                    {
+                        VisitTile(ref checker, ref visitedRow.DangerousGetReferenceAt(gx));
+                        ogx = gx;
+                        gx += dirX;
+                    }
                 }
+                else
+                {
+                    gx = targetX;
+                    ogx = gx - dirX;
+                }
+
                 if ((uint)gx >= span.Width)
                     return SimulationResult.Exit;
                 // obstacle, rotate by 90
                 gx += -dirX;
+                if (checker.LoopsOnRotation(ref visitedRow.DangerousGetReferenceAt(gx), guardDir))
+                    return SimulationResult.Loop;
                 guardDir = Rotate(guardDir);
                 (dirX, dirY) = GetMovementVector(guardDir);
                 continue;
@@ -171,8 +196,8 @@ public class Day06 : AdventBase
             ogx = gx;
             while (true)
             {
-                if (VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx)))
-                    return SimulationResult.Loop;
+                if (checker.NeedsToVisitEachLocation())
+                    VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx));
                 ogy = gy;
                 gy += dirY;
                 if ((uint)gy >= span.Height)
@@ -181,6 +206,8 @@ public class Day06 : AdventBase
                     continue;
                 // obstacle, rotate by 90
                 gy -= dirY;
+                if (checker.LoopsOnRotation(ref visited.DangerousGetReferenceAt(gy,gx), guardDir))
+                    return SimulationResult.Loop;
                 guardDir = Rotate(guardDir);
                 (dirX, dirY) = GetMovementVector(guardDir);
                 break;
@@ -188,17 +215,14 @@ public class Day06 : AdventBase
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool VisitTile(ref TChecker checker, ref T tileVisit)
+        void VisitTile(ref TChecker checker, ref T tileVisit)
         {
-            if (checker.HadVisited(ref tileVisit, guardDir))
+            if (!checker.HadVisited(ref tileVisit, guardDir))
             {
-                checker.MarkVisited(ref tileVisit, guardDir);
-                return checker.ShouldEndAtLoop();
+                checker.OnNewVisit(ref tileVisit, guardDir, gx, gy, ogDir, ogx, ogy);
             }
             
-            checker.OnNewVisit(ref tileVisit, guardDir, gx, gy, ogDir, ogx, ogy);
             checker.MarkVisited(ref tileVisit, guardDir);
-            return false;
         }
     }
 
@@ -212,11 +236,7 @@ public class Day06 : AdventBase
             return visited;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ShouldEndAtLoop()
-        {
-            return false;
-        }
+        public bool NeedsToVisitEachLocation() => true;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MarkVisited(ref bool visited, Direction dir)
@@ -229,9 +249,15 @@ public class Day06 : AdventBase
         {
             Count++;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool LoopsOnRotation(ref bool visited, Direction dir)
+        {
+            return false;
+        }
     }
 
-    private ref struct P2CheckerInitial(ReadOnlySpan2D<char> span, Span2D<Direction> visitedMap, Span2D<Direction> tempVisitedMap) : IChecker<Direction>
+    private ref struct P2CheckerInitial(ReadOnlySpan2D<char> span, Span2D<Direction> visitedMap, Span2D<Direction> tempVisitedMap) 
+        : IChecker<Direction>
     {
         private readonly ReadOnlySpan2D<char> _span = span;
         private readonly Span2D<Direction> _visitedMap = visitedMap;
@@ -244,12 +270,8 @@ public class Day06 : AdventBase
         {
             return visited != Direction.None;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ShouldEndAtLoop()
-        {
-            return false;
-        }
+        
+        public bool NeedsToVisitEachLocation() => true;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MarkVisited(ref Direction visited, Direction dir)
@@ -274,6 +296,12 @@ public class Day06 : AdventBase
             obstacleRef = prevTile;
             Count += isLoop == SimulationResult.Loop ? 1 : 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool LoopsOnRotation(ref Direction visited, Direction dir)
+        {
+            return false;
+        }
     }
     
     private ref struct P2CheckerInner : IChecker<Direction>
@@ -281,25 +309,29 @@ public class Day06 : AdventBase
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool HadVisited(ref Direction visited, Direction dir)
         {
-            return (visited & dir) == dir;
+           return false;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ShouldEndAtLoop()
-        {
-            return true;
-        }
+        
+        public bool NeedsToVisitEachLocation() => false;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MarkVisited(ref Direction visited, Direction dir)
         {
-            visited |= dir;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void OnNewVisit(ref Direction visited, Direction dir, int gx, int gy, Direction ogDir, int ogx, int ogy)
         {
 
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool LoopsOnRotation(ref Direction visited, Direction dir)
+        {
+            if ((visited & dir) == dir)
+                return true;
+            visited |= dir;
+            return false;
         }
     }
     
