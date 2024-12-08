@@ -100,6 +100,12 @@ NeedsToVisitEachLocation
 |------- |-------------:|-----------:|-----------:|----------:|
 | Part1  |     6.689 us |  0.0578 us |  0.0541 us |      24 B |
 | Part2  | 2,956.064 us | 13.8153 us | 12.9228 us |      24 B |
+
+Transposed map + small microopts
+| Method | Mean         | Error     | StdDev    | Allocated |
+|------- |-------------:|----------:|----------:|----------:|
+| Part1  |     6.453 us | 0.0169 us | 0.0141 us |      24 B |
+| Part2  | 2,573.377 us | 6.0574 us | 5.3697 us |      24 B |
  */
 public class Day06 : AdventBase
 {
@@ -124,33 +130,30 @@ public class Day06 : AdventBase
     
     private interface IChecker<T>
     {
-        public bool HadVisited(ref T visited, Direction dir);
+        public bool HadVisited(ref T visited);
         
         public bool NeedsToVisitEachLocation();
         
         public void MarkVisited(ref T visited, Direction dir);
 
-        public void OnNewVisit(ref T visited, Direction dir, int gx, int gy, Direction ogDir, int ogx, int ogy);
+        public void OnNewVisit(int gx, int gy, Direction dir);
 
         public bool LoopsOnRotation(ref T visited, Direction dir);
     }
 
-    private static SimulationResult Simulate<T, TChecker>(Span2D<T> visited, ref TChecker checker, ReadOnlySpan2D<char> span, 
+    private static SimulationResult Simulate<T, TChecker>(Span2D<T> visited, ref TChecker checker, 
+        ReadOnlySpan2D<char> span, ReadOnlySpan2D<char> spanT, 
         int sgy, int sgx, Direction guardDir)
         where TChecker : IChecker<T>, allows ref struct
     {
         var (gx, gy) = (sgx, sgy);
-        var (ogx, ogy, ogDir) = (gx, gy, guardDir);
-
         var (dirX, dirY) = GetMovementVector(guardDir);
         
         while (true)
         {
-            ogDir = guardDir;
             if (dirX != 0)
             {
                 // Horizontal movement - use IndexOf to benefit from SIMD
-                ogy = gy;
                 int targetX;
                 if (dirX > 0)
                 {
@@ -172,14 +175,12 @@ public class Day06 : AdventBase
                     while (gx != targetX)
                     {
                         VisitTile(ref checker, ref visitedRow.DangerousGetReferenceAt(gx));
-                        ogx = gx;
                         gx += dirX;
                     }
                 }
                 else
                 {
                     gx = targetX;
-                    ogx = gx - dirX;
                 }
 
                 if ((uint)gx >= span.Width)
@@ -192,34 +193,75 @@ public class Day06 : AdventBase
                 (dirX, dirY) = GetMovementVector(guardDir);
                 continue;
             }
+            
             // vertical
-            ogx = gx;
-            while (true)
+            if (spanT == default)
             {
+                // In part 1, transposing the map is way too costly to be worth it, so do a scalar loop instead
+                while (true)
+                {
+                    if (checker.NeedsToVisitEachLocation())
+                        VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx));
+                    gy += dirY;
+                    if ((uint)gy >= span.Height)
+                        return SimulationResult.Exit;
+                    if (span.DangerousGetReferenceAt(gy, gx) != '#')
+                        continue;
+                    // obstacle, rotate by 90
+                    gy -= dirY;
+                    if (checker.LoopsOnRotation(ref visited.DangerousGetReferenceAt(gy,gx), guardDir))
+                        return SimulationResult.Loop;
+                    guardDir = Rotate(guardDir);
+                    (dirX, dirY) = GetMovementVector(guardDir);
+                    break;
+                }
+            }
+            else
+            {
+                // We have a transposed map, we can SIMD
+                int targetY;
+                if (dirY > 0)
+                {
+                    var curRow = spanT.GetRowSpan(gx)[gy..];
+                    targetY = curRow.IndexOf('#');
+                    if (targetY == -1)
+                        targetY = curRow.Length;
+                    targetY += gy;
+                }
+                else
+                {
+                    targetY = spanT.GetRowSpan(gx)[..gy].LastIndexOf('#');
+                }
+            
                 if (checker.NeedsToVisitEachLocation())
-                    VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx));
-                ogy = gy;
-                gy += dirY;
+                {
+                    while (gy != targetY)
+                    {
+                        VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx));
+                        gy += dirY;
+                    }
+                }
+                else
+                {
+                    gy = targetY;
+                }
                 if ((uint)gy >= span.Height)
                     return SimulationResult.Exit;
-                if (span.DangerousGetReferenceAt(gy, gx) != '#')
-                    continue;
                 // obstacle, rotate by 90
                 gy -= dirY;
                 if (checker.LoopsOnRotation(ref visited.DangerousGetReferenceAt(gy,gx), guardDir))
                     return SimulationResult.Loop;
                 guardDir = Rotate(guardDir);
                 (dirX, dirY) = GetMovementVector(guardDir);
-                break;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void VisitTile(ref TChecker checker, ref T tileVisit)
         {
-            if (!checker.HadVisited(ref tileVisit, guardDir))
+            if (!checker.HadVisited(ref tileVisit))
             {
-                checker.OnNewVisit(ref tileVisit, guardDir, gx, gy, ogDir, ogx, ogy);
+                checker.OnNewVisit(gx, gy, guardDir);
             }
             
             checker.MarkVisited(ref tileVisit, guardDir);
@@ -231,7 +273,7 @@ public class Day06 : AdventBase
         public int Count;
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HadVisited(ref bool visited, Direction dir)
+        public bool HadVisited(ref bool visited)
         {
             return visited;
         }
@@ -245,7 +287,7 @@ public class Day06 : AdventBase
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void OnNewVisit(ref bool visited, Direction dir, int gx, int gy, Direction ogDir, int ogx, int ogy)
+        public void OnNewVisit(int gx, int gy, Direction dir)
         {
             Count++;
         }
@@ -256,17 +298,18 @@ public class Day06 : AdventBase
         }
     }
 
-    private ref struct P2CheckerInitial(ReadOnlySpan2D<char> span, Span2D<Direction> visitedMap, Span2D<Direction> tempVisitedMap) 
+    private ref struct P2CheckerInitial(ReadOnlySpan2D<char> span, Span2D<char> spanT, Span2D<Direction> visitedMap, Span2D<Direction> tempVisitedMap) 
         : IChecker<Direction>
     {
         private readonly ReadOnlySpan2D<char> _span = span;
+        private readonly ReadOnlySpan2D<char> _spanT = spanT;
         private readonly Span2D<Direction> _visitedMap = visitedMap;
         private readonly Span2D<Direction> _tempVisitedMap = tempVisitedMap;
 
         public int Count;
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HadVisited(ref Direction visited, Direction dir)
+        public bool HadVisited(ref Direction visited)
         {
             return visited != Direction.None;
         }
@@ -280,8 +323,11 @@ public class Day06 : AdventBase
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void OnNewVisit(ref Direction visited, Direction dir, int gx, int gy, Direction ogDir, int ogx, int ogy)
+        public void OnNewVisit(int gx, int gy, Direction dir)
         {
+            var (ogx, ogy) = GetMovementVector(dir);
+            ogx = gx - ogx;
+            ogy = gy - ogy;
             // See what happens if we place an obstacle at this spot.
             // Start the simulation at the current pos
             _visitedMap.CopyTo(_tempVisitedMap);
@@ -290,10 +336,13 @@ public class Day06 : AdventBase
             var checker = new P2CheckerInner();
 
             ref var obstacleRef = ref _span.DangerousGetReferenceAt(gy, gx);
+            ref var obstacleTRef = ref _spanT.DangerousGetReferenceAt(gx, gy);
             var prevTile = obstacleRef;
             obstacleRef = '#';
-            var isLoop = Simulate(_tempVisitedMap, ref checker, _span, ogy, ogx, ogDir);
+            obstacleTRef = '#';
+            var isLoop = Simulate(_tempVisitedMap, ref checker, _span,_spanT, ogy, ogx, dir);
             obstacleRef = prevTile;
+            obstacleTRef = prevTile;
             Count += isLoop == SimulationResult.Loop ? 1 : 0;
         }
 
@@ -307,7 +356,7 @@ public class Day06 : AdventBase
     private ref struct P2CheckerInner : IChecker<Direction>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HadVisited(ref Direction visited, Direction dir)
+        public bool HadVisited(ref Direction visited)
         {
            return false;
         }
@@ -320,7 +369,7 @@ public class Day06 : AdventBase
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void OnNewVisit(ref Direction visited, Direction dir, int gx, int gy, Direction ogDir, int ogx, int ogy)
+        public void OnNewVisit(int gx, int gy, Direction dir)
         {
 
         }
@@ -341,6 +390,7 @@ public class Day06 : AdventBase
         var lineWidth = input.IndexOf('\n') + 1;
         var guardIdx = input.IndexOf('^');
         var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        
         Span<bool> visited1D = stackalloc bool[span.Height * span.Width];
         var visited = Span2D<bool>.DangerousCreate(ref visited1D[0], span.Height, span.Width, 0);
         
@@ -348,7 +398,7 @@ public class Day06 : AdventBase
 
         var checker = new P1Checker();
 
-        Simulate(visited, ref checker, span, sgy, sgx, Direction.Up);
+        Simulate(visited, ref checker, span, spanT: default, sgy, sgx, Direction.Up);
         
         return checker.Count; // 5212
     }
@@ -360,6 +410,9 @@ public class Day06 : AdventBase
         var guardIdx = input.IndexOf('^');
         
         var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        Span<char> spanT1D = stackalloc char[input.Length];
+        var spanT = Span2D<char>.DangerousCreate(ref spanT1D[0], lineWidth, input.Length / lineWidth + 1, 0);
+        span.Transpose(spanT);
         
         Span<Direction> visited1D = stackalloc Direction[span.Height * span.Width];
         Span<Direction> visitedTemp1D = stackalloc Direction[span.Height * span.Width];
@@ -368,9 +421,9 @@ public class Day06 : AdventBase
 
         var (sgx, sgy) = (guardIdx % span.Width, guardIdx / span.Width);
         
-        var checker = new P2CheckerInitial(span, visited, visitedTemp);
+        var checker = new P2CheckerInitial(span, spanT, visited, visitedTemp);
 
-        Simulate(visited, ref checker, span, sgy, sgx, Direction.Up);
+        Simulate(visited, ref checker, span, spanT, sgy, sgx, Direction.Up);
 
         return checker.Count; // 1767
     }

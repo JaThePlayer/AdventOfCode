@@ -1,11 +1,41 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using CommunityToolkit.HighPerformance;
 
 namespace AoC;
 
 public static class MathExt
 {
+    public static ulong PowerOfTen(int pow)
+    {
+        ReadOnlySpan<ulong> powersOf10 =
+        [
+            1,
+            10,
+            100,
+            1000,
+            10000,
+            100000,
+            1000000,
+            10000000,
+            100000000,
+            1000000000,
+            10000000000,
+            100000000000,
+            1000000000000,
+            10000000000000,
+            100000000000000,
+            1000000000000000,
+            10000000000000000,
+            100000000000000000,
+            1000000000000000000,
+            10000000000000000000,
+        ];
+        
+        return Unsafe.Add(ref MemoryMarshal.GetReference(powersOf10), pow);
+    }
+    
     // From System.Buffers.Text.FormattingHelpers.CountDigits
     /// <summary>
     /// Counts how many digits are in this long (in base 10)
@@ -87,4 +117,10 @@ public static class MathExt
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ulong Concat(this ulong left, ulong right) => left * NextPowerOf10(right) + right;
+
+    public static void Transpose<T>(this ReadOnlySpan2D<T> b, Span2D<T> output)
+    {
+        for (var i = 0; i < b.Height; ++i)
+            b.GetRowSpan(i).CopyTo(output.GetColumn(i));
+    }
 }
