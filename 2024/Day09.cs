@@ -46,60 +46,76 @@ Part 2 rewrite
 | Method | Mean     | Error   | StdDev  | Gen0    | Gen1   | Allocated |
 |------- |---------:|--------:|--------:|--------:|-------:|----------:|
 | Part2  | 351.3 us | 1.10 us | 0.92 us | 11.7188 | 1.4648 |  98.23 KB |
+
+Part 1 rewrite
+| Method | Mean      | Error    | StdDev   | Gen0    | Gen1   | Allocated |
+|------- |----------:|---------:|---------:|--------:|-------:|----------:|
+| Part1  |  47.04 us | 0.454 us | 0.402 us |       - |      - |      24 B |
+| Part2  | 348.85 us | 1.293 us | 1.080 us | 11.7188 | 1.4648 |  100592 B |
  */
 public class Day09 : AdventBase
 {
     public override int Year => 2024;
     public override int Day => 9;
     
+    record struct Region(int Index, int Length);
+    
     protected override object Part1Impl()
     {
         long sum = 0;
         var input = Input.Text.AsSpan();
-        var files = new List<int>();
-        var nextFileId = 0;
+
+        Span<Region> files = stackalloc Region[input.Length / 2 + 1];
+        var fileI = 0;
+        Span<Region> empties = stackalloc Region[input.Length / 2 + 1];
+        var emptiesI = 0;
+        var idx = 0;
         
-        for (int i = 0; i < input.Length; i += 2)
+        for (var i = 0; i < input.Length; i += 2)
         {
             var c = input[i] - '0';
-            files.AddRange(Enumerable.Repeat(nextFileId, c));
-            if (i + 1 < input.Length)
-            {
-                var free = input[i+1] - '0';
-                files.AddRange(Enumerable.Repeat(-1, free));
-            }
+            files[fileI++] = new Region(idx, c);
+            idx += c;
 
-            nextFileId++;
+            if (i >= input.Length - 1)
+                break;
+            
+            var free = input[i + 1] - '0';
+            if (free == 0)
+                continue;
+
+            empties[emptiesI++] = new Region(idx, free);
+            idx += free;
         }
-        
-        var l = 0;
-        var r = files.Count - 1;
-        var f = CollectionsMarshal.AsSpan(files);
-        while (l < r && r > 0)
+
+        var ei = 0;
+        var empty = empties[ei++];
+        for (var i = files.Length - 1; i >= 0; i--)
         {
-            while (f[l] != -1 && l+1 < r)
-                l++;
-            while (f[r] == -1 && r > 0)
-                r--;
-
-            if (l < r)
+            var (fileIndex, len) = files[i];
+            
+            // copy as much as possible
+            while (empty.Length < len && empty.Index <= fileIndex)
             {
-                f[l] = f[r];
-                f[r] = -1;
-                l++;
-                r--;
+                sum += (long)(i * empty.Length * (empty.Index + (empty.Length - 1) / 2.0) );
+                len -= empty.Length;
+                empty = empties.DangerousGetReferenceAt(ei++);
+            }
+            
+            if (empty.Length >= len && empty.Index <= fileIndex)
+            {
+                sum += (long)(i * len * (empty.Index + (len - 1) / 2.0) );
+                empty.Length -= len;
+                empty.Index += len;
+            }
+            else
+            {
+                sum += (long)(i * len * (fileIndex + (len - 1) / 2.0) );
             }
         }
 
-        for (int i = 0; i < f.Length && f[i] >= 0; i++)
-        {
-            sum += f[i] * i;
-        }
-
-        return sum;
+        return sum; // 6201130364722
     }
-
-    record struct Region(int Index, int Length);
     
     protected override object Part2Impl()
     {
@@ -142,7 +158,7 @@ public class Day09 : AdventBase
             for (int j = len; j < 10; j++)
             {
                 var list = empties[j];
-                if (list.Count <= 0)
+                if (list is null || list.Count <= 0)
                     continue;
                 // Because the lists are sorted, the leftmost region is at index 0.
                 var firstEmpty = list[0];
