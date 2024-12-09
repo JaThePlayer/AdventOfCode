@@ -19,9 +19,10 @@ AdventBase[] days = [
     new Day06(),
     new Day07Backwards(),
     new Day08(),
+    new Day09(),
 ];
 
-var day = days[8 - 1];
+var day = days[9 - 1];
 Console.WriteLine(day.Part1());
 Console.WriteLine(day.Part2());
 day.Benchmark();
