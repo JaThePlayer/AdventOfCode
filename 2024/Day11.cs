@@ -20,20 +20,30 @@ Try to get memoized value on each iteration
 |------- |------------:|----------:|----------:|---------:|---------:|---------:|----------:|
 | Part1  |    42.70 us |  0.523 us |  0.490 us |   7.3853 |   1.2207 |        - |  60.84 KB |
 | Part2  | 4,898.18 us | 40.056 us | 37.468 us | 523.4375 | 500.0000 | 500.0000 | 2461.4 KB |
+
+Presize the memo dictionary
+| Method | Mean        | Error     | StdDev    | Gen0     | Gen1     | Gen2     | Allocated  |
+|------- |------------:|----------:|----------:|---------:|---------:|---------:|-----------:|
+| Part1  |    38.90 us |  0.143 us |  0.119 us |   4.0283 |   0.4272 |        - |   33.03 KB |
+| Part2  | 4,113.44 us | 48.111 us | 42.649 us | 328.1250 | 328.1250 | 328.1250 | 1278.87 KB |
+
+FastParseIntList instead of linq
+| Method | Mean        | Error     | StdDev   | Gen0     | Gen1     | Gen2     | Allocated |
+|------- |------------:|----------:|---------:|---------:|---------:|---------:|----------:|
+| Part1  |    39.07 us |  0.137 us | 0.107 us |   3.9673 |   0.4272 |        - |  32.46 KB |
+| Part2  | 4,021.85 us | 10.266 us | 9.101 us | 328.1250 | 328.1250 | 328.1250 | 1278.3 KB |
  */
 
 public class Day11 : AdventBase
 {
     public override int Year => 2024;
     public override int Day => 11;
-
-    private static Dictionary<(ulong, int), ulong> _memory = new();
     
-    private ulong SimulateRock(ulong rock, int maxSteps)
+    private ulong SimulateRock(ulong rock, int maxSteps, Dictionary<(ulong, int), ulong> memory)
     {
         if (maxSteps == 0)
             return 1;
-        if (_memory.TryGetValue((rock, maxSteps), out ulong result))
+        if (memory.TryGetValue((rock, maxSteps), out var result))
             return result;
 
         ulong sum = 0;
@@ -52,11 +62,8 @@ public class Day11 : AdventBase
                 if (digits % 2 == 0)
                 {
                     var powOf10 = MathExt.PowerOfTen(digits / 2);
-                    var left = rock / powOf10;
-                    var right = rock % powOf10;
-
-                    rock = left;
-                    sum += SimulateRock(right, maxSteps);
+                    sum += SimulateRock(rock % powOf10, maxSteps, memory);
+                    rock /= powOf10;
                 }
                 else
                 {
@@ -64,47 +71,48 @@ public class Day11 : AdventBase
                 }
             }
             
-            if (_memory.TryGetValue((rock, maxSteps), out ulong r2))
+            if (memory.TryGetValue((rock, maxSteps), out var r2))
             {
-                _memory.TryAdd((initialRock, initialMaxSteps), sum + r2);
+                memory.TryAdd((initialRock, initialMaxSteps), sum + r2);
                 return sum + r2;
             }
         }
         
-        _memory.TryAdd((initialRock, initialMaxSteps), 1+sum);
+        memory.TryAdd((initialRock, initialMaxSteps), 1+sum);
         return 1 + sum;
     }
     
-    private ulong Simulate(int maxSteps)
+    private ulong Simulate(int maxSteps, int capacityHint)
     {
-        // For the sake of fair benchmarks, get rid of the cache
-        _memory = new();
-        
-        var rocks = Input.Text.Split(' ').Select(x => (ulong.Parse(x), 1)).ToList();
+        Span<ulong> rocksBuffer = stackalloc ulong[16];
+        var rocks = Util.FastParseIntList(Input.Text, ' ', rocksBuffer);
         ulong sum = 0;
 
         /*
         Parallel.ForEach(rocks, r =>
         {
-            Interlocked.Add(ref sum, (ulong)SimulateRock(r.Item1, maxSteps));
+            var memory = new Dictionary<(ulong, int), ulong>(capacityHint);
+            Interlocked.Add(ref sum, (ulong)SimulateRock(r, maxSteps, memory));
+            //Console.WriteLine((memory.Count, memory.Capacity));
         });
         */
-
+        var memory = new Dictionary<(ulong, int), ulong>(capacityHint);
         foreach (var r in rocks)
         {
-            sum += SimulateRock(r.Item1, maxSteps);
+            sum += SimulateRock(r, maxSteps, memory);
         }
+        
         
         return sum;
     }
     
     protected override object Part1Impl()
     {
-        return Simulate(25); // 229043
+        return Simulate(25, 852); // 229043
     }
 
     protected override object Part2Impl()
     {
-        return Simulate(75); // 272673043446478
+        return Simulate(75, 32542); // 272673043446478
     }
 }
