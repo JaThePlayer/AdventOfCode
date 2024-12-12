@@ -6,10 +6,10 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <PublishAot>true</PublishAot>
-
-        <IlcInstructionSet>native</IlcInstructionSet>
-        <OptimizationPreference>Speed</OptimizationPreference>
+    </PropertyGroup>
+    
+    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     </PropertyGroup>
 
     <ItemGroup>
