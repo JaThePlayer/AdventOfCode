@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using CommunityToolkit.HighPerformance;
 
 namespace AoC;
 
@@ -43,7 +44,7 @@ public static class Util
     
     public static T FastParse2DigitInt<T>(ReadOnlySpan<byte> input) where T : IBinaryInteger<T>
     {
-        return T.CreateTruncating(10) * T.CreateTruncating(input[0] - '0') + T.CreateTruncating(input[1] - '0');
+        return T.CreateTruncating(10) * T.CreateTruncating(input.DangerousGetReferenceAt(0) - '0') + T.CreateTruncating(input.DangerousGetReferenceAt(1) - '0');
     }
     
     /// <summary>
