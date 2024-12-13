@@ -51,9 +51,9 @@ public class Day08 : AdventBase
     private int Solve<T>() where T : ISolver, new()
     {
         T solver = new();
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        var input = Input.TextU8;
+        var lineWidth = input.IndexOf((byte)'\n') + 1;
+        var span = ReadOnlySpan2D<byte>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
         
         Span<bool> map1d = stackalloc bool[(span.Width - 1) * span.Height];
         var map = Span2D<bool>.DangerousCreate(ref map1d[0], input.Length / lineWidth + 1, lineWidth - 1, 0);
@@ -135,7 +135,7 @@ public class Day08 : AdventBase
         return Solve<Part2Solver>(); // 1126
     }
     
-    private static List<(int x, int y)>?[] ParseV2(ReadOnlySpan2D<char> span)
+    private static List<(int x, int y)>?[] ParseV2(ReadOnlySpan2D<byte> span)
     {
         var antennas = new List<(int x, int y)>?['z' - '0' + 1];
         for (int y = 0; y < span.Height; y++)

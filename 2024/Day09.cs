@@ -63,7 +63,7 @@ public class Day09 : AdventBase
     protected override object Part1Impl()
     {
         long sum = 0;
-        var input = Input.Text.AsSpan();
+        var input = Input.TextU8;
 
         Span<Region> files = stackalloc Region[input.Length / 2 + 1];
         var fileI = 0;
@@ -120,7 +120,7 @@ public class Day09 : AdventBase
     protected override object Part2Impl()
     {
         long sum = 0;
-        var input = Input.Text.AsSpan();
+        var input = Input.TextU8;
 
         Span<Region> files = stackalloc Region[input.Length / 2 + 1];
         var fileI = 0;

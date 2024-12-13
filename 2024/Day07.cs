@@ -51,13 +51,13 @@ public class Day07 : AdventBase
     public override int Year => 2024;
     public override int Day => 7;
 
-    protected static LinqExt.SplitParser<char, Span<ulong>, RefTuple<ulong, Span<ulong>>> Parse(ReadOnlySpan<char> input,
+    protected static LinqExt.SplitParser<byte, Span<ulong>, RefTuple<ulong, Span<ulong>>> Parse(ReadOnlySpan<byte> input,
         Span<ulong> buffer)
     {
-        return input.ParseSplits('\n', buffer, static (line, buffer) =>
+        return input.ParseSplits((byte)'\n', buffer, static (line, buffer) =>
         {
-            line.SplitTwo(':', out var target, out var numbersSpan);
-            var m = Util.FastParseIntList(numbersSpan[1..], ' ', buffer);
+            line.SplitTwo((byte)':', out var target, out var numbersSpan);
+            var m = Util.FastParseIntList(numbersSpan[1..], (byte)' ', buffer);
             
             return RefTuple.Create(Util.FastParseInt<ulong>(target), m);
         });
@@ -80,11 +80,10 @@ public class Day07 : AdventBase
     
     protected override object Part1Impl()
     {
-        var input = Input.Text.AsSpan();
         Span<ulong> buffer = new ulong[12];
         ulong sum = 0;
 
-        foreach (var (num, numbers) in Parse(input, buffer))
+        foreach (var (num, numbers) in Parse(Input.TextU8, buffer))
         {
             sum += TryPart1(num, numbers[0], numbers[1..]) ? num : 0;
         }
@@ -127,11 +126,10 @@ public class Day07 : AdventBase
     
     protected override object Part2Impl()
     {
-        var input = Input.Text.AsSpan();
         Span<ulong> buffer = new ulong[12];
         ulong sum = 0;
 
-        foreach (var (num, numbers) in Parse(input, buffer))
+        foreach (var (num, numbers) in Parse(Input.TextU8, buffer))
         {
             sum += TryPart2(num, numbers[0], numbers[1..]) ? num : 0;
         }

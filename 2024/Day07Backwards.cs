@@ -39,11 +39,10 @@ public class Day07Backwards : Day07
     
     protected override object Part1Impl()
     {
-        var input = Input.Text.AsSpan();
         Span<ulong> buffer = new ulong[12];
         ulong sum = 0;
 
-        foreach (var (num, numbers) in Parse(input, buffer))
+        foreach (var (num, numbers) in Parse(Input.TextU8, buffer))
         {
             sum += TryPart1(num, numbers, numbers.Length - 1) ? num : 0;
         }
@@ -70,11 +69,10 @@ public class Day07Backwards : Day07
 
     protected override object Part2Impl()
     {
-        var input = Input.Text.AsSpan();
         Span<ulong> buffer = new ulong[12];
         ulong sum = 0;
 
-        foreach (var (num, numbers) in Parse(input, buffer))
+        foreach (var (num, numbers) in Parse(Input.TextU8, buffer))
         {
             sum += TryPart2(num, numbers, numbers.Length - 1) ? num : 0;
         }

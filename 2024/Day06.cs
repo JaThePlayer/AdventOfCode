@@ -106,6 +106,12 @@ Transposed map + small microopts
 |------- |-------------:|----------:|----------:|----------:|
 | Part1  |     6.453 us | 0.0169 us | 0.0141 us |      24 B |
 | Part2  | 2,573.377 us | 6.0574 us | 5.3697 us |      24 B |
+
+Utf8
+| Method | Mean         | Error     | StdDev    | Allocated |
+|------- |-------------:|----------:|----------:|----------:|
+| Part1  |     6.286 us | 0.0914 us | 0.0855 us |      24 B |
+| Part2  | 2,310.029 us | 6.7484 us | 5.9822 us |      26 B |
  */
 public class Day06 : AdventBase
 {
@@ -132,7 +138,7 @@ public class Day06 : AdventBase
     }
 
     private static SimulationResult Simulate<T, TChecker>(Span2D<T> visited, ref TChecker checker, 
-        ReadOnlySpan2D<char> span, ReadOnlySpan2D<char> spanT, 
+        ReadOnlySpan2D<byte> span, ReadOnlySpan2D<byte> spanT, 
         int sgy, int sgx, Direction guardDir)
         where TChecker : IChecker<T>, allows ref struct
     {
@@ -149,7 +155,7 @@ public class Day06 : AdventBase
                 {
                     // going right
                     var curRow = span.GetRowSpan(gy)[gx..];
-                    targetX = curRow.IndexOf('#');
+                    targetX = curRow.IndexOf((byte)'#');
                     if (targetX == -1)
                         targetX = curRow.Length;
                     targetX += gx;
@@ -157,7 +163,7 @@ public class Day06 : AdventBase
                 else
                 {
                     // left
-                    targetX = span.GetRowSpan(gy)[..gx].LastIndexOf('#');
+                    targetX = span.GetRowSpan(gy)[..gx].LastIndexOf((byte)'#');
                 }
                 var visitedRow = visited.GetRowSpan(gy);
                 if (checker.NeedsToVisitEachLocation())
@@ -221,14 +227,14 @@ public class Day06 : AdventBase
                 if (dirY > 0)
                 {
                     var curRow = spanT.GetRowSpan(gx)[gy..];
-                    targetY = curRow.IndexOf('#');
+                    targetY = curRow.IndexOf((byte)'#');
                     if (targetY == -1)
                         targetY = curRow.Length;
                     targetY += gy;
                 }
                 else
                 {
-                    targetY = spanT.GetRowSpan(gx)[..gy].LastIndexOf('#');
+                    targetY = spanT.GetRowSpan(gx)[..gy].LastIndexOf((byte)'#');
                 }
             
                 if (checker.NeedsToVisitEachLocation())
@@ -302,11 +308,11 @@ public class Day06 : AdventBase
         }
     }
 
-    private ref struct P2CheckerInitial(ReadOnlySpan2D<char> span, Span2D<char> spanT, Span2D<Direction> visitedMap, Span2D<Direction> tempVisitedMap) 
+    private ref struct P2CheckerInitial(ReadOnlySpan2D<byte> span, Span2D<byte> spanT, Span2D<Direction> visitedMap, Span2D<Direction> tempVisitedMap) 
         : IChecker<Direction>
     {
-        private readonly ReadOnlySpan2D<char> _span = span;
-        private readonly ReadOnlySpan2D<char> _spanT = spanT;
+        private readonly ReadOnlySpan2D<byte> _span = span;
+        private readonly ReadOnlySpan2D<byte> _spanT = spanT;
         private readonly Span2D<Direction> _visitedMap = visitedMap;
         private readonly Span2D<Direction> _tempVisitedMap = tempVisitedMap;
 
@@ -343,9 +349,9 @@ public class Day06 : AdventBase
             ref var obstacleRef = ref _span.DangerousGetReferenceAt(gy, gx);
             ref var obstacleTRef = ref _spanT.DangerousGetReferenceAt(gx, gy);
             var prevTile = obstacleRef;
-            obstacleRef = '#';
-            obstacleTRef = '#';
-            var isLoop = Simulate(_tempVisitedMap, ref checker, _span,_spanT, ogy, ogx, Rotate(dir));
+            obstacleRef = (byte)'#';
+            obstacleTRef = (byte)'#';
+            var isLoop = Simulate(_tempVisitedMap, ref checker, _span, _spanT, ogy, ogx, Rotate(dir));
             obstacleRef = prevTile;
             obstacleTRef = prevTile;
             Count += isLoop == SimulationResult.Loop ? 1 : 0;
@@ -392,10 +398,9 @@ public class Day06 : AdventBase
     
     protected override object Part1Impl()
     {
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
-        var guardIdx = input.IndexOf('^');
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        var input = Input.TextU8;
+        var guardIdx = input.IndexOf((byte)'^');
+        var span = Input.Create2DMap();
         
         Span<bool> visited1D = stackalloc bool[span.Height * span.Width];
         var visited = Span2D<bool>.DangerousCreate(ref visited1D[0], span.Height, span.Width, 0);
@@ -411,13 +416,12 @@ public class Day06 : AdventBase
     
     protected override object Part2Impl()
     {
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
-        var guardIdx = input.IndexOf('^');
+        var input = Input.TextU8;
+        var guardIdx = input.IndexOf((byte)'^');
         
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
-        Span<char> spanT1D = stackalloc char[input.Length];
-        var spanT = Span2D<char>.DangerousCreate(ref spanT1D[0], lineWidth, input.Length / lineWidth + 1, 0);
+        var span = Input.Create2DMap();
+        Span<byte> spanT1D = stackalloc byte[input.Length];
+        var spanT = Span2D<byte>.DangerousCreate(ref spanT1D[0], span.Width, span.Height, 0);
         span.Transpose(spanT);
         
         Span<Direction> visited1D = stackalloc Direction[span.Height * span.Width];

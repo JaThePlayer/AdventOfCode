@@ -1,5 +1,7 @@
+using System.Text;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using CommunityToolkit.HighPerformance;
 
 namespace AoC;
 
@@ -62,6 +64,19 @@ public abstract class AdventBase
 public sealed class AdventFile(string path)
 {
     private string? _text;
+    private byte[]? _textU8;
     
     public string Text => _text ??= File.ReadAllText(path).ReplaceLineEndings("\n");
+    public ReadOnlySpan<byte> TextU8 => _textU8 ??= Encoding.UTF8.GetBytes(Text);
+    
+    /// <summary>
+    /// Creates a 2d map of the input. Dynamically checks the line size, which is uncached for fair benchmarks.
+    /// </summary>
+    public ReadOnlySpan2D<byte> Create2DMap()
+    {
+        var input = TextU8;
+        var lineWidth = input.IndexOf((byte)'\n') + 1;
+        
+        return ReadOnlySpan2D<byte>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+    }
 }

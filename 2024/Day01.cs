@@ -40,16 +40,16 @@ public class Day01 : AdventBase
 
     protected (int[] leftNums, int[] rightNums) ParseInput()
     {
-        var input = Input.Text.AsSpan();
+        ReadOnlySpan<byte> input = Input.TextU8;
         
-        var lineCount = input.Count('\n') + 1;
+        var lineCount = input.Count((byte)'\n') + 1;
         var leftNums = new int[lineCount];
         var rightNums = new int[lineCount];
         
         ref var left = ref leftNums[0];
         ref var right = ref rightNums[0];
         
-        foreach (var lineRange in input.Split('\n'))
+        foreach (var lineRange in input.Split((byte)'\n'))
         {
             var line = input[lineRange];
             left = Util.FastParseInt<int>(line[..5]);
@@ -124,17 +124,5 @@ public class Day01 : AdventBase
         }
 
         return sum; // 23150395
-
-        /*
-        var rightNumCounts = rightNums.ToCountByDictionary(x => x, initialCapacity: leftNums.Length);
-
-        var sum = 0;
-        foreach (var left in leftNums.AsSpan())
-        {
-            sum += left * rightNumCounts.GetValueOrDefault(left);
-        }
-
-        return sum; // 23150395
-        */
     }
 }

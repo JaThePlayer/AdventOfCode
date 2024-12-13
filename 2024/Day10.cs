@@ -67,7 +67,7 @@ public class Day10 : AdventBase
         }
     }
     
-    private static int Count<TDirs, TTarget>(ReadOnlySpan2D<char> span, Span2D<ushort> visited, ushort id, int sx, int sy)
+    private static int Count<TDirs, TTarget>(ReadOnlySpan2D<byte> span, Span2D<ushort> visited, ushort id, int sx, int sy)
         where TDirs : IDirPicker
         where TTarget : struct, ITarget
     {
@@ -91,7 +91,7 @@ public class Day10 : AdventBase
         return r;
     }
     
-    private static int Count2<TDirs, TTarget>(ReadOnlySpan2D<char> span, Span2D<byte> visited, int sx, int sy)
+    private static int Count2<TDirs, TTarget>(ReadOnlySpan2D<byte> span, Span2D<byte> visited, int sx, int sy)
         where TDirs : IDirPicker
         where TTarget : struct, ITarget
     {
@@ -120,10 +120,10 @@ public class Day10 : AdventBase
     protected override object Part1Impl()
     {
         var sum = 0;
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
+        var input = Input.TextU8;
+        var lineWidth = input.IndexOf((byte)'\n') + 1;
         
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        var span = ReadOnlySpan2D<byte>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
         
         // we'll store the ID of the starting point in the array, so we don't have to clear it each time
         Span<ushort> visited1D = stackalloc ushort[span.Height * span.Width];
@@ -132,7 +132,7 @@ public class Day10 : AdventBase
         ushort id = 1;
         int i;
         var si = 0;
-        while ((i = input.IndexOf('0')) != -1)
+        while ((i = input.IndexOf((byte)'0')) != -1)
         {
             si += i;
             var x = si % span.Width;
@@ -149,16 +149,16 @@ public class Day10 : AdventBase
     protected override object Part2Impl()
     {
         var sum = 0;
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
+        var input = Input.TextU8;
+        var lineWidth = input.IndexOf((byte)'\n') + 1;
         
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        var span = ReadOnlySpan2D<byte>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
         Span<byte> visited1D = stackalloc byte[span.Height * span.Width];
         var visited = Span2D<byte>.DangerousCreate(ref visited1D[0], span.Height, span.Width, 0);
 
         int i;
         var si = 0;
-        while ((i = input.IndexOf('0')) != -1)
+        while ((i = input.IndexOf((byte)'0')) != -1)
         {
             si += i;
             var x = si % span.Width;

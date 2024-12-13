@@ -85,7 +85,7 @@ public class Day11 : AdventBase
     private ulong Simulate(int maxSteps, int capacityHint)
     {
         Span<ulong> rocksBuffer = stackalloc ulong[16];
-        var rocks = Util.FastParseIntList(Input.Text, ' ', rocksBuffer);
+        var rocks = Util.FastParseIntList(Input.TextU8, (byte)' ', rocksBuffer);
         ulong sum = 0;
 
         /*

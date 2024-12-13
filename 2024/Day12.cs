@@ -32,7 +32,7 @@ public class Day12 : AdventBase
     public override int Year => 2024;
     public override int Day => 12;
 
-    private (int, int) HandleRegion<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, char tile, int sx, int sy)
+    private (int, int) HandleRegion<TDirs>(ReadOnlySpan2D<byte> map, Span2D<bool> visited, byte tile, int sx, int sy)
         where TDirs : IDirPicker
     {
         visited[sy, sx] = true;
@@ -51,7 +51,7 @@ public class Day12 : AdventBase
         
         return (area, perimeter);
 
-        void Visit<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, int x, int y)
+        void Visit<TDirs>(ReadOnlySpan2D<byte> map, Span2D<bool> visited, int x, int y)
             where TDirs : IDirPicker
         {
             unchecked
@@ -87,10 +87,7 @@ public class Day12 : AdventBase
     protected override object Part1Impl()
     {
         ulong sum = 0;
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
-        
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        var span = Input.Create2DMap();
         Span<bool> visited1D = stackalloc bool[span.Height * span.Width];
         var visited = Span2D<bool>.DangerousCreate(ref visited1D[0], span.Height, span.Width, 0);
 
@@ -108,7 +105,7 @@ public class Day12 : AdventBase
         return sum; // 1461806
     }
 
-    private (int, int) HandleRegionPart2<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, Span2D<Direction> fences, char tile, int sx, int sy)
+    private (int, int) HandleRegionPart2<TDirs>(ReadOnlySpan2D<byte> map, Span2D<bool> visited, Span2D<Direction> fences, byte tile, int sx, int sy)
         where TDirs : IDirPicker
     {
         visited.DangerousGetReferenceAt(sy, sx) = true;
@@ -127,7 +124,7 @@ public class Day12 : AdventBase
         
         return (area, sides);
 
-        void Visit<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, Span2D<Direction> fences, int x, int y, Direction dir)
+        void Visit<TDirs>(ReadOnlySpan2D<byte> map, Span2D<bool> visited, Span2D<Direction> fences, int x, int y, Direction dir)
             where TDirs : IDirPicker
         {
             unchecked
@@ -233,10 +230,7 @@ public class Day12 : AdventBase
     protected override object Part2Impl()
     {
         ulong sum = 0;
-        var input = Input.Text.AsSpan();
-        var lineWidth = input.IndexOf('\n') + 1;
-        
-        var span = ReadOnlySpan2D<char>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+        var span = Input.Create2DMap();
         Span<bool> visited1D = stackalloc bool[span.Height * span.Width];
         var visited = Span2D<bool>.DangerousCreate(ref visited1D[0], span.Height, span.Width, 0);
         Span<Direction> fences1D = stackalloc Direction[span.Height * span.Width];

@@ -83,18 +83,18 @@ public class Day05 : AdventBase
     public override int Year => 2024;
     public override int Day => 5;
 
-    private static Dictionary<TNum, List<TNum>> ParseRules(ReadOnlySpan<char> input,
-        out MemoryExtensions.SpanSplitEnumerator<char> remaining,
+    private static Dictionary<TNum, List<TNum>> ParseRules(ReadOnlySpan<byte> input,
+        out MemoryExtensions.SpanSplitEnumerator<byte> remaining,
         out TNum maxSeenNumber)
     {
         Dictionary<TNum, List<TNum>> dependencies = new(49); // capacity should be 49, but that feels cheaty
         
-        remaining = input.Split('\n').GetEnumerator();
+        remaining = input.Split((byte)'\n').GetEnumerator();
         maxSeenNumber = 0;
         while (remaining.MoveNext())
         {
             var line = input[remaining.Current];
-            if (line.IsWhiteSpace())
+            if (line.IsEmpty)
                 break;
             var left = Util.FastParse2DigitInt<TNum>(line[..2]);
             var right = Util.FastParse2DigitInt<TNum>(line[3..]);
@@ -140,7 +140,7 @@ public class Day05 : AdventBase
     
     protected override object Part1Impl()
     {
-        var input = Input.Text.AsSpan();
+        var input = Input.TextU8;
         var dependencies = ParseRules(input, out var enumerable, out var maxSeenNumber);
         Span<TNum> buffer = stackalloc TNum[100];
         Span<bool> invalidMask = stackalloc bool[100]; // maxSeenNumber + 1
@@ -167,7 +167,7 @@ public class Day05 : AdventBase
 
     protected override object Part2Impl()
     {
-        var input = Input.Text.AsSpan();
+        var input = Input.TextU8;
         var dependencies = ParseRules(input, out var enumerable, out var maxSeenNumber);
         Span<TNum> buffer = stackalloc TNum[100];
         Span<bool> invalidMask = stackalloc bool[100]; // maxSeenNumber + 1

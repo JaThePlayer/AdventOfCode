@@ -67,18 +67,11 @@ public class Day02 : AdventBase
     public override int Year => 2024;
     public override int Day => 2;
 
-    [InlineArray(16)]
-    private struct IntBuffer
+    private LinqExt.SplitParser<byte, Span<int>, Span<int>> ParseInput()
     {
-        private int _first;
-    }
-
-    private LinqExt.SplitParser<char, Span<int>, Span<int>> ParseInput()
-    {
-        //var data = new IntBuffer();
-        Span<int> buffer = new int[16];// new Span<int>(Unsafe.AsPointer(ref data[0]), 16);
-        return Input.Text.AsSpan().ParseSplits('\n', buffer, static (line, buffer)
-            => Util.FastParseIntList(line, ' ', buffer));
+        Span<int> buffer = new int[16];
+        return Input.TextU8.ParseSplits((byte)'\n', buffer, static (line, buffer)
+            => Util.FastParseIntList(line, (byte)' ', buffer));
     }
 
     private static bool IsSafe(ReadOnlySpan<int> report, out int errorIdx)
