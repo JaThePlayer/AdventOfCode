@@ -17,6 +17,12 @@ Thanks to Simon on Celestecord for the idea.
 |------- |---------:|---------:|---------:|----------:|
 | Part1  | 60.54 us | 1.199 us | 1.601 us |     144 B |
 | Part2  | 92.70 us | 1.711 us | 1.601 us |     144 B |
+
+Utf8
+| Method | Mean     | Error    | StdDev   | Allocated |
+|------- |---------:|---------:|---------:|----------:|
+| Part1  | 58.47 us | 1.166 us | 1.388 us |     144 B |
+| Part2  | 86.40 us | 1.723 us | 3.746 us |     144 B |
  */
 public class Day07Backwards : Day07
 {

@@ -36,54 +36,25 @@ public static class MathExt
         return Unsafe.Add(ref MemoryMarshal.GetReference(powersOf10), pow);
     }
     
-    // From System.Buffers.Text.FormattingHelpers.CountDigits
     /// <summary>
     /// Counts how many digits are in this long (in base 10)
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CountDigits(this ulong value)
     {
-        // Map the log2(value) to a power of 10.
-        ReadOnlySpan<byte> log2ToPow10 =
-        [
-            1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5,
-            6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10,
-            10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15,
-            15, 16, 16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20
+        // Ported from https://github.com/tesselslate/aoc-codspeed/blob/main/src/day11.rs
+        // Original algo from https://da-data.blogspot.com/2023/02/integer-log10-in-rust-and-c.html
+        ReadOnlySpan<ulong> lut = [
+            9,                  99,                 999,
+            9_999,              99_999,             999_999,
+            9_999_999,          99_999_999,         999_999_999,
+            9_999_999_999,      99_999_999_999,     999_999_999_999,
+            9_999_999_999_999,  99_999_999_999_999, 999_999_999_999_999,
         ];
+        const long mask = 0b0001001001000100100100010010010001001001000100100100010010010000;
 
-        uint index = Unsafe.Add(ref MemoryMarshal.GetReference(log2ToPow10), BitOperations.Log2(value));
-
-        // Read the associated power of 10.
-        ReadOnlySpan<ulong> powersOf10 =
-        [
-            0, // unused entry to avoid needing to subtract
-            0,
-            10,
-            100,
-            1000,
-            10000,
-            100000,
-            1000000,
-            10000000,
-            100000000,
-            1000000000,
-            10000000000,
-            100000000000,
-            1000000000000,
-            10000000000000,
-            100000000000000,
-            1000000000000000,
-            10000000000000000,
-            100000000000000000,
-            1000000000000000000,
-            10000000000000000000,
-        ];
-        var powerOf10 = Unsafe.Add(ref MemoryMarshal.GetReference(powersOf10), index);
-
-        // Return the number of digits based on the power of 10, shifted by 1
-        // if it falls below the threshold.
-        return (int)(index - Unsafe.BitCast<bool, byte>(value < powerOf10));
+        var guess = (int)long.PopCount(mask << (int)ulong.LeadingZeroCount(value));
+        return guess + (value > lut.DangerousGetReferenceAt(guess) ? 2 : 1);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -32,6 +32,18 @@ FastParseIntList instead of linq
 |------- |------------:|----------:|---------:|---------:|---------:|---------:|----------:|
 | Part1  |    39.07 us |  0.137 us | 0.107 us |   3.9673 |   0.4272 |        - |  32.46 KB |
 | Part2  | 4,021.85 us | 10.266 us | 9.101 us | 328.1250 | 328.1250 | 328.1250 | 1278.3 KB |
+
+Utf8
+| Method | Mean        | Error     | StdDev    | Gen0     | Gen1     | Gen2     | Allocated |
+|------- |------------:|----------:|----------:|---------:|---------:|---------:|----------:|
+| Part1  |    37.59 us |  0.330 us |  0.292 us |   3.9673 |   0.4272 |        - |  32.46 KB |
+| Part2  | 4,092.17 us | 19.898 us | 16.616 us | 328.1250 | 328.1250 | 328.1250 | 1278.3 KB |
+
+Improve CountDigits
+| Method | Mean        | Error     | StdDev    | Gen0     | Gen1     | Gen2     | Allocated |
+|------- |------------:|----------:|----------:|---------:|---------:|---------:|----------:|
+| Part1  |    33.78 us |  0.247 us |  0.206 us |   3.9673 |   0.4272 |        - |  32.46 KB |
+| Part2  | 3,881.21 us | 36.702 us | 34.331 us | 332.0313 | 332.0313 | 332.0313 | 1278.3 KB |
  */
 
 public class Day11 : AdventBase
@@ -87,15 +99,7 @@ public class Day11 : AdventBase
         Span<ulong> rocksBuffer = stackalloc ulong[16];
         var rocks = Util.FastParseIntList(Input.TextU8, (byte)' ', rocksBuffer);
         ulong sum = 0;
-
-        /*
-        Parallel.ForEach(rocks, r =>
-        {
-            var memory = new Dictionary<(ulong, int), ulong>(capacityHint);
-            Interlocked.Add(ref sum, (ulong)SimulateRock(r, maxSteps, memory));
-            //Console.WriteLine((memory.Count, memory.Capacity));
-        });
-        */
+        
         var memory = new Dictionary<(ulong, int), ulong>(capacityHint);
         foreach (var r in rocks)
         {
