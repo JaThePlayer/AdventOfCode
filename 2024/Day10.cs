@@ -31,26 +31,17 @@ STUPID generics
 
 Part2 - use 'byte' for cache
 | Part2  | 15.32 us | 0.022 us | 0.018 us |      24 B |
+
+Small microopts
+| Method | Mean     | Error    | StdDev   | Allocated |
+|------- |---------:|---------:|---------:|----------:|
+| Part1  | 23.89 us | 0.063 us | 0.056 us |      24 B |
+| Part2  | 15.19 us | 0.069 us | 0.061 us |      24 B |
  */
 public class Day10 : AdventBase
 {
     public override int Year => 2024;
     public override int Day => 10;
-
-    private interface IConstBool
-    {
-        public static abstract bool Value { get; }
-    }
-
-    private struct True : IConstBool
-    {
-        public static bool Value => true;
-    }
-
-    private struct False : IConstBool
-    {
-        public static bool Value => false;
-    }
 
     private interface ITarget
     {
@@ -76,11 +67,8 @@ public class Day10 : AdventBase
         }
     }
     
-    private static int Count<TLeft, TRight, TTop, TBot, TTarget>(ReadOnlySpan2D<char> span, Span2D<ushort> visited, ushort id, int sx, int sy)
-        where TLeft : IConstBool
-        where TRight : IConstBool
-        where TTop : IConstBool
-        where TBot : IConstBool
+    private static int Count<TDirs, TTarget>(ReadOnlySpan2D<char> span, Span2D<ushort> visited, ushort id, int sx, int sy)
+        where TDirs : IDirPicker
         where TTarget : struct, ITarget
     {
         ref var visit = ref visited.DangerousGetReferenceAt(sy, sx);
@@ -91,25 +79,20 @@ public class Day10 : AdventBase
             return 1;
         
         var r = 0;
-        var row = span.GetRowSpan(sy);
-
-        if (TLeft.Value && sx > 0 && row.DangerousGetReferenceAt(sx-1) == TTarget.Value)
-            r += Count<True, False, True, True, NextTarget<TTarget>>(span, visited, id, sx-1, sy);
-        if (TRight.Value && row.DangerousGetReferenceAt(sx+1) == TTarget.Value)
-            r += Count<False, True, True, True, NextTarget<TTarget>>(span, visited, id, sx+1, sy);
-        if (TTop.Value && sy > 0 && span.DangerousGetReferenceAt(sy-1, sx) == TTarget.Value)
-            r += Count<True, True, True, False, NextTarget<TTarget>>(span, visited, id, sx, sy-1);
-        if (TBot.Value && sy+1 < span.Height && span.DangerousGetReferenceAt(sy+1, sx) == TTarget.Value)
-            r += Count<True, True, False, True, NextTarget<TTarget>>(span, visited, id, sx, sy+1);
+        if (TDirs.Left && sx > 0 && span.DangerousGetReferenceAt(sy, sx-1) == TTarget.Value)
+            r += Count<ExceptRightPicker, NextTarget<TTarget>>(span, visited, id, sx-1, sy);
+        if (TDirs.Right && span.DangerousGetReferenceAt(sy, sx+1) == TTarget.Value)
+            r += Count<ExceptLeftPicker, NextTarget<TTarget>>(span, visited, id, sx+1, sy);
+        if (TDirs.Up && sy > 0 && span.DangerousGetReferenceAt(sy-1, sx) == TTarget.Value)
+            r += Count<ExceptDownPicker, NextTarget<TTarget>>(span, visited, id, sx, sy-1);
+        if (TDirs.Down && sy+1 < span.Height && span.DangerousGetReferenceAt(sy+1, sx) == TTarget.Value)
+            r += Count<ExceptUpPicker, NextTarget<TTarget>>(span, visited, id, sx, sy+1);
 
         return r;
     }
     
-    private static int Count2<TLeft, TRight, TTop, TBot, TTarget>(ReadOnlySpan2D<char> span, Span2D<byte> visited, int sx, int sy)
-        where TLeft : IConstBool
-        where TRight : IConstBool
-        where TTop : IConstBool
-        where TBot : IConstBool
+    private static int Count2<TDirs, TTarget>(ReadOnlySpan2D<char> span, Span2D<byte> visited, int sx, int sy)
+        where TDirs : IDirPicker
         where TTarget : struct, ITarget
     {
         if (TTarget.Value == '9'+1)
@@ -120,15 +103,14 @@ public class Day10 : AdventBase
             return cache - 1;
 
         var r = 0;
-        var row = span.GetRowSpan(sy);
-        if (TLeft.Value && sx > 0 && row.DangerousGetReferenceAt(sx-1) == TTarget.Value)
-            r += Count2<True, False, True, True, NextTarget<TTarget>>(span, visited, sx-1, sy);
-        if (TRight.Value && row.DangerousGetReferenceAt(sx+1) == TTarget.Value)
-            r += Count2<False, True, True, True, NextTarget<TTarget>>(span, visited, sx+1, sy);
-        if (TTop.Value && sy > 0 && span.DangerousGetReferenceAt(sy-1, sx) == TTarget.Value)
-            r += Count2<True, True, True, False, NextTarget<TTarget>>(span, visited, sx, sy-1);
-        if (TBot.Value && sy+1 < span.Height && span.DangerousGetReferenceAt(sy+1, sx) == TTarget.Value)
-            r += Count2<True, True, False, True, NextTarget<TTarget>>(span, visited, sx, sy+1);
+        if (TDirs.Left && sx > 0 && span.DangerousGetReferenceAt(sy, sx-1) == TTarget.Value)
+            r += Count2<ExceptRightPicker, NextTarget<TTarget>>(span, visited, sx-1, sy);
+        if (TDirs.Right && span.DangerousGetReferenceAt(sy, sx+1) == TTarget.Value)
+            r += Count2<ExceptLeftPicker, NextTarget<TTarget>>(span, visited, sx+1, sy);
+        if (TDirs.Up && sy > 0 && span.DangerousGetReferenceAt(sy-1, sx) == TTarget.Value)
+            r += Count2<ExceptDownPicker, NextTarget<TTarget>>(span, visited, sx, sy-1);
+        if (TDirs.Down && sy+1 < span.Height && span.DangerousGetReferenceAt(sy+1, sx) == TTarget.Value)
+            r += Count2<ExceptUpPicker, NextTarget<TTarget>>(span, visited, sx, sy+1);
 
         cache = (byte)(r + 1);
 
@@ -155,7 +137,7 @@ public class Day10 : AdventBase
             si += i;
             var x = si % span.Width;
             var y = si / span.Width;
-            sum += Count<True, True, True, True, Target1>(span, visited, id++, x, y);
+            sum += Count<AllDirPicker, Target1>(span, visited, id++, x, y);
             
             input = input[(i + 1)..];
             si++;
@@ -181,7 +163,7 @@ public class Day10 : AdventBase
             si += i;
             var x = si % span.Width;
             var y = si / span.Width;
-            sum += Count2<True, True, True, True, Target1>(span, visited, x, y);
+            sum += Count2<AllDirPicker, Target1>(span, visited, x, y);
             
             input = input[(i + 1)..];
             si++;

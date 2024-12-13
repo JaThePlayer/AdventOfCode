@@ -35,7 +35,7 @@ public class Day13 : AdventBase
         var a = detAa / detA;
         var b = detAb / detA;
         
-        // See if the solution is valid
+        // See if the solution is valid - maybe the only solution is floating-point, which is invalid in this task
         if (ax*a + bx*b == px && ay*a + by*b == py)
             return 3*a + b;
         return 0;
@@ -92,6 +92,6 @@ public class Day13 : AdventBase
             sum += (long)FindSolution(ax, ay, bx, by, px, py);
         }
 
-        return sum;
+        return sum; // 89013607072065
     }
 }

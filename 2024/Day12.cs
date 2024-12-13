@@ -7,6 +7,24 @@ namespace AoC._2024;
 |------- |---------:|--------:|--------:|----------:|
 | Part1  | 550.7 us | 6.41 us | 5.99 us |      24 B |
 | Part2  | 952.1 us | 2.93 us | 2.45 us |      24 B |
+
+Part 2: Don't clear the directions map each iteration
+| Method | Mean     | Error   | StdDev  | Allocated |
+|------- |---------:|--------:|--------:|----------:|
+| Part1  | 556.7 us | 4.79 us | 4.00 us |      24 B |
+| Part2  | 849.0 us | 8.87 us | 8.30 us |      24 B |
+
+Stupid generics
+| Method | Mean     | Error   | StdDev  | Allocated |
+|------- |---------:|--------:|--------:|----------:|
+| Part1  | 257.9 us | 2.65 us | 2.35 us |      24 B |
+| Part2  | 540.2 us | 3.39 us | 3.01 us |      24 B |
+
+Microopts
+| Method | Mean     | Error   | StdDev  | Allocated |
+|------- |---------:|--------:|--------:|----------:|
+| Part1  | 230.3 us | 1.19 us | 0.99 us |      24 B |
+| Part2  | 495.4 us | 1.12 us | 0.99 us |      24 B |
  */
 
 public class Day12 : AdventBase
@@ -14,36 +32,48 @@ public class Day12 : AdventBase
     public override int Year => 2024;
     public override int Day => 12;
 
-    private (int, int) HandleRegion(ReadOnlySpan2D<char> map, Span2D<bool> visited, char tile, int sx, int sy)
+    private (int, int) HandleRegion<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, char tile, int sx, int sy)
+        where TDirs : IDirPicker
     {
         visited[sy, sx] = true;
 
         var area = 1;
         var perimeter = 0;
 
-        Visit(map, visited, sx - 1, sy);
-        Visit(map, visited, sx + 1, sy);
-        Visit(map, visited, sx, sy + 1);
-        Visit(map, visited, sx, sy - 1);
+        if (TDirs.Left)
+            Visit<ExceptRightPicker>(map, visited, sx - 1, sy);
+        if (TDirs.Right)
+            Visit<ExceptLeftPicker>(map, visited, sx + 1, sy);
+        if (TDirs.Down)
+            Visit<ExceptUpPicker>(map, visited, sx, sy + 1);
+        if (TDirs.Up)
+            Visit<ExceptDownPicker>(map, visited, sx, sy - 1);
         
         return (area, perimeter);
 
-        void Visit(ReadOnlySpan2D<char> map, Span2D<bool> visited, int x, int y)
+        void Visit<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, int x, int y)
+            where TDirs : IDirPicker
         {
             unchecked
             {
-                if ((uint)x >= map.Width-1 || (uint)y >= map.Height)
+                if ((!TDirs.Left || !TDirs.Right) && (uint)x >= map.Width - 1)
+                {
+                    perimeter++;
+                    return;
+                }
+                
+                if ((!TDirs.Down || !TDirs.Up) && (uint)y >= map.Height)
                 {
                     perimeter++;
                     return;
                 }
             }
             
-            if (map[y, x] == tile)
+            if (map.DangerousGetReferenceAt(y, x) == tile)
             {
-                if (visited[y, x])
+                if (visited.DangerousGetReferenceAt(y, x))
                     return;
-                var (iarea, iper) = HandleRegion(map, visited, tile, x, y);
+                var (iarea, iper) = HandleRegion<TDirs>(map, visited, tile, x, y);
                 area += iarea;
                 perimeter += iper;
             }
@@ -70,97 +100,128 @@ public class Day12 : AdventBase
             {
                 if (visited[y, x])
                     continue;
-                var (area, perimeter) = HandleRegion(span, visited, span[y, x], x, y);
+                var (area, perimeter) = HandleRegion<AllDirPicker>(span, visited, span[y, x], x, y);
                 sum += (ulong)area * (ulong)perimeter;
             }
         }
 
-        return sum;
+        return sum; // 1461806
     }
 
-    [Flags]
-    enum Direction : byte
+    private (int, int) HandleRegionPart2<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, Span2D<Direction> fences, char tile, int sx, int sy)
+        where TDirs : IDirPicker
     {
-        None = 0,
-        Up = 1, 
-        Down = 2, 
-        Left = 4, 
-        Right = 8,
-    }
-
-    private (int, int) HandleRegionPart2(ReadOnlySpan2D<char> map, Span2D<bool> visited, Span2D<Direction> fences, char tile, int sx, int sy)
-    {
-        visited[sy, sx] = true;
+        visited.DangerousGetReferenceAt(sy, sx) = true;
 
         var area = 1;
         var sides = 0;
 
-        Visit(map, visited, fences, sx - 1, sy, Direction.Left);
-        Visit(map, visited, fences, sx + 1, sy, Direction.Right);
-        Visit(map, visited, fences, sx, sy + 1, Direction.Down);
-        Visit(map, visited, fences, sx, sy - 1, Direction.Up);
+        if (TDirs.Left)
+            Visit<ExceptRightPicker>(map, visited, fences, sx - 1, sy, Direction.Left);
+        if (TDirs.Right)
+            Visit<ExceptLeftPicker>(map, visited, fences, sx + 1, sy, Direction.Right);
+        if (TDirs.Down)
+            Visit<ExceptUpPicker>(map, visited, fences, sx, sy + 1, Direction.Down);
+        if (TDirs.Up)
+            Visit<ExceptDownPicker>(map, visited, fences, sx, sy - 1, Direction.Up);
         
         return (area, sides);
 
-        void Visit(ReadOnlySpan2D<char> map, Span2D<bool> visited, Span2D<Direction> fences, int x, int y, Direction dir)
+        void Visit<TDirs>(ReadOnlySpan2D<char> map, Span2D<bool> visited, Span2D<Direction> fences, int x, int y, Direction dir)
+            where TDirs : IDirPicker
         {
             unchecked
             {
-                if ((uint)x >= map.Width-1 || (uint)y >= map.Height)
-                {
+                if ((!TDirs.Left || !TDirs.Right) && (uint)x >= map.Width - 1)
                     goto foundBorder;
-                }
+                if ((!TDirs.Down || !TDirs.Up) && (uint)y >= map.Height)
+                    goto foundBorder;
             }
             
-            if (map[y, x] == tile)
+            if (map.DangerousGetReferenceAt(y, x) == tile)
             {
-                if (visited[y, x])
+                if (visited.DangerousGetReferenceAt(y, x))
                     return;
-                var (iarea, iper) = HandleRegionPart2(map, visited, fences, tile, x, y);
+                var (iarea, iper) = HandleRegionPart2<TDirs>(map, visited, fences, tile, x, y);
                 area += iarea;
                 sides += iper;
                 return;
             }
             
             foundBorder:
-            if ((fences[sy, sx] & dir) == dir)
+            ref var fence = ref fences.DangerousGetReferenceAt(sy, sx);
+            if ((fence & dir) == dir)
                 return;
             
             sides++;
-            fences[sy, sx] |= dir;
+            fence |= dir;
+            
             unchecked
             {
                 switch (dir)
                 {
                     case Direction.Right or Direction.Left:
                         var ny = sy + 1;
-                        while ((uint)ny < map.Height && map[ny, sx] == tile 
-                                                     && ((uint)x >= map.Width-1 || map[ny, x] != tile))
+                        if ((uint)x >= map.Width - 1)
                         {
-                            fences[ny, sx] |= dir;
+                            // we're checking OOB, so we can definitely extend the fence
+                            while ((uint)ny < map.Height && map.DangerousGetReferenceAt(ny, sx) == tile)
+                            {
+                                fences.DangerousGetReferenceAt(ny, sx) |= dir;
+                                ny++;
+                            }
+                            ny = sy - 1;
+                            while (ny >= 0 && map.DangerousGetReferenceAt(ny, sx) == tile)
+                            {
+                                fences.DangerousGetReferenceAt(ny, sx) |= dir;
+                                ny--;
+                            }
+
+                            break;
+                        }
+                        
+                        while ((uint)ny < map.Height && map.DangerousGetReferenceAt(ny, sx) == tile && map.DangerousGetReferenceAt(ny, x) != tile)
+                        {
+                            fences.DangerousGetReferenceAt(ny, sx) |= dir;
                             ny++;
                         }
                         ny = sy - 1;
-                        while (ny >= 0 && map[ny, sx] == tile 
-                                      && ((uint)x >= map.Width-1 || map[ny, x] != tile))
+                        while (ny >= 0 && map.DangerousGetReferenceAt(ny, sx) == tile && map.DangerousGetReferenceAt(ny, x) != tile)
                         {
-                            fences[ny, sx] |= dir;
+                            fences.DangerousGetReferenceAt(ny, sx) |= dir;
                             ny--;
                         }
                         break;
-                    case Direction.Up or Direction.Down:
+                    default:
                         var nx = sx + 1;
-                        while ((uint)nx < map.Width && map[sy, nx] == tile 
-                           && ((uint)y >= map.Height || map[y, nx] != tile))
+                        var selfRow = map.GetRowSpan(sy);
+                        var fenceRow = fences.GetRowSpan(sy);
+                        if ((uint)y >= map.Height)
                         {
-                            fences[sy, nx] |= dir;
+                            while ((uint)nx < selfRow.Length && selfRow.DangerousGetReferenceAt(nx) == tile)
+                            {
+                                fenceRow.DangerousGetReferenceAt(nx) |= dir;
+                                nx++;
+                            }
+                            nx = sx - 1;
+                            while (nx >= 0 && selfRow.DangerousGetReferenceAt(nx) == tile)
+                            {
+                                fenceRow.DangerousGetReferenceAt(nx) |= dir;
+                                nx--;
+                            }
+                            break;
+                        }
+                        
+                        var checkedRow = map.GetRowSpan(y);
+                        while ((uint)nx < checkedRow.Length && selfRow.DangerousGetReferenceAt(nx) == tile && checkedRow.DangerousGetReferenceAt(nx) != tile)
+                        {
+                            fenceRow.DangerousGetReferenceAt(nx) |= dir;
                             nx++;
                         }
                         nx = sx - 1;
-                        while (nx >= 0 && map[sy, nx] == tile 
-                                      && ((uint)y >= map.Height || map[y, nx] != tile))
+                        while (nx >= 0 && selfRow.DangerousGetReferenceAt(nx) == tile && checkedRow.DangerousGetReferenceAt(nx) != tile)
                         {
-                            fences[sy, nx] |= dir;
+                            fenceRow.DangerousGetReferenceAt(nx) |= dir;
                             nx--;
                         }
                         break;
@@ -187,13 +248,12 @@ public class Day12 : AdventBase
             {
                 if (visited[y, x])
                     continue;
-                fences.Fill(Direction.None);
                 
-                var (area, sides) = HandleRegionPart2(span, visited, fences, span[y, x], x, y);
+                var (area, sides) = HandleRegionPart2<AllDirPicker>(span, visited, fences, span[y, x], x, y);
                 sum += (ulong)area * (ulong)sides;
             }
         }
 
-        return sum;
+        return sum; // 887932
     }
 }

@@ -118,16 +118,6 @@ public class Day06 : AdventBase
         Exit,
     }
     
-    [Flags]
-    private enum Direction : byte
-    {
-        None = 0,
-        Right = 1,
-        Left = 2,
-        Up = 4,
-        Down = 8,
-    }
-    
     private interface IChecker<T>
     {
         public bool HadVisited(ref T visited);
@@ -183,8 +173,12 @@ public class Day06 : AdventBase
                     gx = targetX;
                 }
 
-                if ((uint)gx >= span.Width)
-                    return SimulationResult.Exit;
+                unchecked
+                {
+                    if ((uint)gx >= span.Width)
+                        return SimulationResult.Exit;
+                }
+                
                 // obstacle, rotate by 90
                 gx += -dirX;
                 if (checker.LoopsOnRotation(ref visitedRow.DangerousGetReferenceAt(gx), guardDir))
@@ -203,8 +197,12 @@ public class Day06 : AdventBase
                     if (checker.NeedsToVisitEachLocation())
                         VisitTile(ref checker, ref visited.DangerousGetReferenceAt(gy, gx));
                     gy += dirY;
-                    if ((uint)gy >= span.Height)
-                        return SimulationResult.Exit;
+                    unchecked
+                    {
+                        if ((uint)gy >= span.Height)
+                            return SimulationResult.Exit;
+                    }
+
                     if (span.DangerousGetReferenceAt(gy, gx) != '#')
                         continue;
                     // obstacle, rotate by 90
@@ -245,8 +243,13 @@ public class Day06 : AdventBase
                 {
                     gy = targetY;
                 }
-                if ((uint)gy >= span.Height)
-                    return SimulationResult.Exit;
+
+                unchecked
+                {
+                    if ((uint)gy >= span.Height)
+                        return SimulationResult.Exit;
+                }
+
                 // obstacle, rotate by 90
                 gy -= dirY;
                 if (checker.LoopsOnRotation(ref visited.DangerousGetReferenceAt(gy,gx), guardDir))
@@ -278,6 +281,7 @@ public class Day06 : AdventBase
             return visited;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool NeedsToVisitEachLocation() => true;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -314,6 +318,7 @@ public class Day06 : AdventBase
             return visited != Direction.None;
         }
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool NeedsToVisitEachLocation() => true;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -331,7 +336,7 @@ public class Day06 : AdventBase
             // See what happens if we place an obstacle at this spot.
             // Start the simulation at the current pos
             _visitedMap.CopyTo(_tempVisitedMap);
-            _tempVisitedMap.DangerousGetReferenceAt(ogy, ogx) = Direction.None;
+            _tempVisitedMap.DangerousGetReferenceAt(ogy, ogx) |= dir;
             
             var checker = new P2CheckerInner();
 
@@ -340,7 +345,7 @@ public class Day06 : AdventBase
             var prevTile = obstacleRef;
             obstacleRef = '#';
             obstacleTRef = '#';
-            var isLoop = Simulate(_tempVisitedMap, ref checker, _span,_spanT, ogy, ogx, dir);
+            var isLoop = Simulate(_tempVisitedMap, ref checker, _span,_spanT, ogy, ogx, Rotate(dir));
             obstacleRef = prevTile;
             obstacleTRef = prevTile;
             Count += isLoop == SimulationResult.Loop ? 1 : 0;
@@ -361,6 +366,7 @@ public class Day06 : AdventBase
            return false;
         }
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool NeedsToVisitEachLocation() => false;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -430,20 +436,17 @@ public class Day06 : AdventBase
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Direction Rotate(Direction guardDir)
-        => Rotations.DangerousGetReferenceAt((int)guardDir);
+    {
+        ReadOnlySpan<Direction> r = [Direction.None, Direction.Down, Direction.Up, Direction.None,
+            Direction.Right, Direction.None, Direction.None, Direction.None,
+            Direction.Left];
+        return r.DangerousGetReferenceAt((int)guardDir);
+    }
     
-    private static ReadOnlySpan<Direction> Rotations => [Direction.None, Direction.Down, Direction.Up, Direction.None,
-        Direction.Right, Direction.None, Direction.None, Direction.None,
-        Direction.Left];
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static (int, int) GetMovementVector(Direction guardDir)
     {
-        var movement = Movements.DangerousGetReferenceAt((int)guardDir);
-        if (guardDir <= Direction.Left)
-            return (movement, 0);
-        return (0, movement);
+        ReadOnlySpan<long> r = [0, 1, 4294967295, 0, -4294967296, 0, 0, 0, 4294967296];
+        return Unsafe.As<long, (int, int)>(ref r.DangerousGetReferenceAt((int)guardDir));
     }
-    
-    private static ReadOnlySpan<sbyte> Movements => [0, 1, -1, 0, -1, 0, 0, 0, 1];
 }
