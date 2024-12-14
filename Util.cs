@@ -47,6 +47,11 @@ public static class Util
         return T.CreateTruncating(10) * T.CreateTruncating(input.DangerousGetReferenceAt(0) - '0') + T.CreateTruncating(input.DangerousGetReferenceAt(1) - '0');
     }
     
+    public static T FastParse2DigitInt<T>(ReadOnlySpan<byte> input, int i) where T : IBinaryInteger<T>
+    {
+        return T.CreateTruncating(10) * T.CreateTruncating(input.DangerousGetReferenceAt(i) - '0') + T.CreateTruncating(input.DangerousGetReferenceAt(i+1) - '0');
+    }
+    
     /// <summary>
     /// Parse a list of integers into the given buffer.
     /// Assumes input is correct
