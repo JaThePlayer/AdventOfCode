@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance;
 
 namespace AoC._2024;
@@ -8,6 +10,12 @@ Initial
 |------- |-----------:|--------:|--------:|-------:|----------:|
 | Part1  |   167.0 us | 1.15 us | 1.02 us | 0.2441 |   2.54 KB |
 | Part2  | 1,065.6 us | 9.20 us | 8.16 us |      - |   9.84 KB |
+
+Part 2: History instead of backup map
+| Method | Mean     | Error   | StdDev  | Gen0   | Allocated |
+|------- |---------:|--------:|--------:|-------:|----------:|
+| Part1  | 167.2 us | 0.45 us | 0.35 us | 0.2441 |   2.54 KB |
+| Part2  | 211.2 us | 0.94 us | 0.83 us | 0.4883 |   5.23 KB |
  */
 public class Day15 : AdventBase
 {
@@ -48,9 +56,6 @@ public class Day15 : AdventBase
                     TryMove(map, ref gx, ref gy, 0, 1);
                     break;
             }
-
-            //Console.WriteLine($"After {i}: ------");
-            //PrintBoard(map, gx, gy);
         }
 
         // gps
@@ -101,38 +106,17 @@ public class Day15 : AdventBase
         }
     }
 
-    private static void PrintBoard(Span2D<byte> map, int gx, int gy)
-    {
-        for (int y = 0; y < map.Height; y++)
-        {
-            for (int x = 0; x < map.Width - 1; x++)
-            {
-                if (gx == x && gy == y)
-                    Console.Write('@');
-                else
-                    Console.Write((char)map[y, x]);
-            }
-
-            Console.WriteLine();
-        }
-    }
-
     protected override object Part2Impl()
     {
         var input = Input.TextU8;
         var splitIdx = input.IndexOf([(byte)'\n', (byte)'\n']);
-
         
         var origWidth = input.IndexOf((byte)'\n') + 1;
         var mapOrig = ReadOnlySpan2D<byte>.DangerousCreate(input[0], splitIdx / origWidth + 1, origWidth, 0);
         
-        
         var width = (mapOrig.Width-1) * 2;
-        var map1d       = new byte[mapOrig.Height * width];
-        var mapBackup1d = new byte[mapOrig.Height * width];
-        
-        var map       = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height, width, 0);
-        var mapBackup = Span2D<byte>.DangerousCreate(ref mapBackup1d[0], mapOrig.Height, width, 0);
+        var map1d = new byte[mapOrig.Height * width];
+        var map = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height, width, 0);
         
         for (int y = 0; y < mapOrig.Height; y++)
         {
@@ -140,25 +124,21 @@ public class Day15 : AdventBase
             var newRow = map.GetRowSpan(y);
             for (int x = 0; x < mapOrig.Width - 1; x++)
             {
-                var nx = x * 2;
+                ref short nextTwo = ref Unsafe.As<byte, short>(ref newRow.DangerousGetReferenceAt(x * 2));
                 switch (origRow[x])
                 {
                     case (byte)'#':
-                        newRow[nx] = (byte)'#';
-                        newRow[nx+1] = (byte)'#';
+                        nextTwo = 0x2323;
                         break;
                     case (byte)'O':
-                        newRow[nx] = (byte)'[';
-                        newRow[nx+1] = (byte)']';
+                        nextTwo = 0x5d5b;
                         break;
-                    case (byte)'.' or (byte)'@':
-                        newRow[nx] = (byte)'.';
-                        newRow[nx+1] = (byte)'.';
+                    default:
+                        nextTwo = 0x2e2e;
                         break;
                 }
             }
         }
-        
 
         var inputs = input[(splitIdx + 2)..];
         var guardIdx = input.IndexOf((byte)'@');
@@ -167,11 +147,10 @@ public class Day15 : AdventBase
         map[sgy, sgx] = (byte)'.';
         
         var (gx, gy) = (sgx, sgy);
-        //PrintBoard(map, gx, gy);
+        List<(int yB, int xB, int yD, int xD)> history = new(16);
 
         for (int i = 0; i < inputs.Length; i++)
         {
-            map1d.AsSpan().CopyTo(mapBackup1d);
             switch (inputs[i])
             {
                 case (byte)'<':
@@ -181,13 +160,30 @@ public class Day15 : AdventBase
                     TryMoveHorizontal(map, ref gx, ref gy, 1);
                     break;
                 case (byte)'^':
-                    if(!TryMoveVertical(map, ref gx, ref gy, -1))
-                        mapBackup1d.AsSpan().CopyTo(map1d);
+                    if (!TryMoveVertical(map, ref gx, ref gy, -1, history) && history.Count > 0)
+                    {
+                        var span = CollectionsMarshal.AsSpan(history);
+                        for (var iq = span.Length - 1; iq >= 0; iq--)
+                        {
+                            var (yB, xB, yD, xD) = span[iq];
+                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yB, xB)) = 0x2e2e; // ..
+                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yD, xD)) = 0x5d5b; // []
+                        }
+                    }
+                    history.Clear();
                     break;
                 case (byte)'v':
-
-                    if(!TryMoveVertical(map, ref gx, ref gy, 1))
-                        mapBackup1d.AsSpan().CopyTo(map1d);
+                    if (!TryMoveVertical(map, ref gx, ref gy, 1, history) && history.Count > 0)
+                    {
+                        var span = CollectionsMarshal.AsSpan(history);
+                        for (var iq = span.Length - 1; iq >= 0; iq--)
+                        {
+                            var (yB, xB, yD, xD) = span[iq];
+                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yB, xB)) = 0x2e2e; // ..
+                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yD, xD)) = 0x5d5b; // []
+                        }
+                    }
+                    history.Clear();
                     break;
             }
 
@@ -214,21 +210,21 @@ public class Day15 : AdventBase
         //PrintBoard(map, gx, gy);
         return sum; // 1437468
         
-        bool TryMoveHorizontal(Span2D<byte> map, ref int x, ref int y, int ox)
+        static bool TryMoveHorizontal(Span2D<byte> map, ref int x, ref int y, int ox)
         {
             var nx = x + ox;
 
-            ref var nextTile = ref map[y, nx];
+            ref var nextTile = ref map.DangerousGetReferenceAt(y, nx);
             if (nextTile == '#')
                 return false;
-            if (nextTile is (byte)'[' or (byte)']')
+            if (nextTile >= '[')
             {
                 // box
                 var (nnx, nny) = (nx+ox, y);
                 if (TryMoveHorizontal(map, ref nnx, ref nny, ox))
                 {
-                    map[nny, nnx] = ox == -1 ? (byte)'[' : (byte)']';
-                    map[nny, nnx-ox] = nextTile;
+                    map.DangerousGetReferenceAt(nny, nnx) = ox == -1 ? (byte)'[' : (byte)']';
+                    map.DangerousGetReferenceAt(nny, nnx-ox) = nextTile;
                     nextTile = (byte)'.';
                     x = nx;
                     return true;
@@ -241,7 +237,7 @@ public class Day15 : AdventBase
             return true;
         }
         
-        bool TryMoveVertical(Span2D<byte> map, ref int x, ref int y, int oy)
+        static bool TryMoveVertical(Span2D<byte> map, ref int x, ref int y, int oy, List<(int yB, int xB, int yD, int xD)> history)
         {
             var ny = y + oy;
 
@@ -253,9 +249,11 @@ public class Day15 : AdventBase
                 // box
                 var (nnxR, nnyR) = (x, ny);
                 var (nnxL, nnyL) = (x-1, ny);
-                if (TryMoveVertical(map, ref nnxL, ref nnyL, oy)
-                 && TryMoveVertical(map, ref nnxR, ref nnyR, oy))
+                if (TryMoveVertical(map, ref nnxL, ref nnyL, oy, history)
+                 && TryMoveVertical(map, ref nnxR, ref nnyR, oy, history))
                 {
+                    history.Add((nnyL, nnxL, ny, x-1));
+                    
                     map[nnyL, nnxL] = (byte)'[';
                     map[nnyR, nnxR] = (byte)']';
                     nextTile = (byte)'.';
@@ -270,9 +268,11 @@ public class Day15 : AdventBase
                 // box
                 var (nnxR, nnyR) = (x+1, ny);
                 var (nnxL, nnyL) = (x, ny);
-                if (TryMoveVertical(map, ref nnxL, ref nnyL, oy)
-                    && TryMoveVertical(map, ref nnxR, ref nnyR, oy))
+                if (TryMoveVertical(map, ref nnxL, ref nnyL, oy, history)
+                    && TryMoveVertical(map, ref nnxR, ref nnyR, oy, history))
                 {
+                    history.Add((nnyL, nnxL, ny, x));
+                    
                     map[nnyL, nnxL] = (byte)'[';
                     map[nnyR, nnxR] = (byte)']';
                     nextTile = (byte)'.';
@@ -285,6 +285,22 @@ public class Day15 : AdventBase
 
             y = ny;
             return true;
+        }
+    }
+    
+    private static void PrintBoard(Span2D<byte> map, int gx, int gy)
+    {
+        for (int y = 0; y < map.Height; y++)
+        {
+            for (int x = 0; x < map.Width - 1; x++)
+            {
+                if (gx == x && gy == y)
+                    Console.Write('@');
+                else
+                    Console.Write((char)map[y, x]);
+            }
+
+            Console.WriteLine();
         }
     }
 }

@@ -20,11 +20,20 @@ AdventBase[] days = [
     new Day07Backwards(),
     new Day08(),
     new Day09(),
+    new Day10(),
+    new Day11(),
+    new Day12(),
+    new Day13(),
+    new Day14(),
+    new Day15(),
 ];
 
-var day = days[9 - 1];
+var day = days[15 - 1];
 Console.WriteLine(day.Part1());
 Console.WriteLine(day.Part2());
+//return;
+//for (int i = 0; i < 1_000_000; i++) day.Part2();
+
 day.Benchmark();
 return;
 
@@ -35,10 +44,16 @@ var t = new Spectre.Console.Table()
     .AddColumn("P1")
     .AddColumn("P2");
 
+var dayInfos = new List<DayInfo>();
+
 foreach (var d in days)
 {
     t.AddRow(d.Day.ToString());
 }
+
+t.AddEmptyRow();
+t.AddRow("Total");
+
 
 var display = Spectre.Console.AnsiConsole.Live(t);
 display.Start(ctx =>
@@ -82,17 +97,52 @@ display.Start(ctx =>
         var p2 = Stopwatch.GetElapsedTime(curr) / iterations;
         t.UpdateCell(d.Day - 1, 4, FormatTime(p2, true));
         ctx.Refresh();
-
-        static string FormatTime(TimeSpan t, bool colored) =>
-            @$"{(colored ? GetTimeColor(t) : "[white]")}{t.TotalMicroseconds.ToString(CultureInfo.InvariantCulture)}us[/]";
-
-        static string GetTimeColor(TimeSpan t) => t.TotalMicroseconds switch
+        
+        dayInfos.Add(new DayInfo
         {
-            < 50 => @"[green]",
-            < 100 => @"[white]",
-            _ => @"[red]",
-        };
+            Day = d,
+            Part1 = p1,
+            Part2 = p2,
+            Part1Cold = p1Cold,
+            Part2Cold = p2Cold,
+        });
+
+
     }
     //);
 
+    // Add total row
+    var totalRowIdx = dayInfos.Count + 1;
+    t.UpdateCell(totalRowIdx, 1, 
+        FormatTimeMs(dayInfos.Select(d => d.Part1Cold).Aggregate(TimeSpan.Zero, (a,b)=>a + b), false));
+    t.UpdateCell(totalRowIdx, 2, 
+        FormatTimeMs(dayInfos.Select(d => d.Part2Cold).Aggregate(TimeSpan.Zero, (a,b)=>a + b), false));
+    t.UpdateCell(totalRowIdx, 3, 
+        FormatTimeMs(dayInfos.Select(d => d.Part1).Aggregate(TimeSpan.Zero, (a,b)=>a + b), false));
+    t.UpdateCell(totalRowIdx, 4, 
+        FormatTimeMs(dayInfos.Select(d => d.Part2).Aggregate(TimeSpan.Zero, (a,b)=>a + b), false));
+    
+    static string FormatTime(TimeSpan t, bool colored) =>
+        @$"{(colored ? GetTimeColor(t) : "[white]")}{t.TotalMicroseconds.ToString(CultureInfo.InvariantCulture)}us[/]";
+    
+    static string FormatTimeMs(TimeSpan t, bool colored) =>
+        @$"{(colored ? GetTimeColor(t) : "[white]")}{t.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms[/]";
+
+    static string GetTimeColor(TimeSpan t) => t.TotalMicroseconds switch
+    {
+        < 50 => @"[green]",
+        < 100 => @"[white]",
+        _ => @"[red]",
+    };
 });
+
+struct DayInfo
+{
+    public AdventBase Day;
+    
+    public TimeSpan Part1;
+    public TimeSpan Part2;
+
+    public TimeSpan Part1Cold;
+    public TimeSpan Part2Cold;
+}
