@@ -1,7 +1,11 @@
+using System.Runtime.Intrinsics;
 using CommunityToolkit.HighPerformance;
 using MemoryExtensions = System.MemoryExtensions;
 
 namespace AoC._2024;
+
+using Vec = Vector256;
+using VecInt = Vector256<int>;
 
 /*
 Initial
@@ -15,6 +19,15 @@ Part 2 rework
 |------- |----------:|---------:|---------:|-------:|----------:|
 | Part1  |  17.91 us | 0.244 us | 0.216 us |      - |      24 B |
 | Part2  | 549.04 us | 1.473 us | 1.378 us | 1.9531 |   16568 B |
+
+Part 2 rework 2
+| Part2  | 231.5 us | 0.79 us | 0.74 us |      24 B |
+
+Part 2 SIMD
+| Method | Mean     | Error    | StdDev   | Allocated |
+|------- |---------:|---------:|---------:|----------:|
+| Part1  | 17.92 us | 0.345 us | 0.355 us |      24 B |
+| Part2  | 95.31 us | 0.636 us | 0.595 us |      24 B |
  */
 public class Day14 : AdventBase
 {
@@ -83,59 +96,94 @@ public class Day14 : AdventBase
         return q1 * q2 * q3 * q4; // 216772608
     }
     
-    private static void SimulatePart2(List<(int x, int y, int vx, int vy)> input, int steps, Span2D<byte> outputRobotCount)
+    private static void SimulatePart2(Span<int> xs, Span<int> ys, Span<int> vxs, Span<int> vys, Span<byte> rowCounts, Span<byte> colCounts)
     {
-        foreach (var p in input)
+        var i = 0;
+
+        if (ys.Length != xs.Length)
+            return;
+        
+        while (i + VecInt.Count < xs.Length)
         {
-            var x = p.x;
-            var y = p.y;
-            x += steps * p.vx;
-            y += steps * p.vy;
+            var x = Vec.LoadUnsafe(ref xs.DangerousGetReferenceAt(i));
+            var y = Vec.LoadUnsafe(ref ys.DangerousGetReferenceAt(i));
+            
+            x += Vec.LoadUnsafe(ref vxs.DangerousGetReferenceAt(i));
+            y += Vec.LoadUnsafe(ref vys.DangerousGetReferenceAt(i));
+            x += Vec.GreaterThanOrEqual(x, Vec.Create(width)) * width;
+            y += Vec.GreaterThanOrEqual(y, Vec.Create(height)) * height;
+            x += Vec.LessThan(x, Vec.Create(0)) * -width;
+            y += Vec.LessThan(y, Vec.Create(0)) * -height;
+            
+            x.StoreUnsafe(ref xs.DangerousGetReferenceAt(i));
+            y.StoreUnsafe(ref ys.DangerousGetReferenceAt(i));
+
+            for (var j = i + VecInt.Count - 1; j >= i; j--)
+            {
+                colCounts.DangerousGetReferenceAt(xs.DangerousGetReferenceAt(j))++;
+                rowCounts.DangerousGetReferenceAt(ys.DangerousGetReferenceAt(j))++;
+            }
+            
+            i += VecInt.Count;
+        }
+        
+        while (i <  xs.Length)
+        {
+            ref var x = ref xs.DangerousGetReferenceAt(i);
+            ref var y = ref ys.DangerousGetReferenceAt(i);
+            x += vxs.DangerousGetReferenceAt(i);
+            y += vys.DangerousGetReferenceAt(i);
             
             x %= width;
             y %= height;
-            
             if (y < 0)
                 y = height + y;
             if (x < 0)
                 x = width + x;
 
-            outputRobotCount[y, x]++;
+            rowCounts[y]++;
+            colCounts[x]++;
+            i++;
         }
     }
 
     protected override object Part2Impl()
     {
-        Span<byte> robotCount1d = stackalloc byte[width * height];
-        Span2D<byte> robotCount = Span2D<byte>.DangerousCreate(ref robotCount1d[0], height, width, 0);
-
-        List<(int x, int y, int vx, int vy)> robots = new();
         var input = Input.TextU8;
+        
+        var robotCount = MemoryExtensions.Count(input, (byte)'\n') + 1;
+        
+        Span<int> xs = stackalloc int[robotCount];
+        Span<int> ys = stackalloc int[robotCount];
+        Span<int> vxs = stackalloc int[robotCount];
+        Span<int> vys = stackalloc int[robotCount];
+        var ri = 0;
+        
         foreach (var lineRange in input.Split((byte)'\n'))
         {
-            var line = input[lineRange];
-            
-            ParseRobot(line, out var x, out var y, out var vx, out var vy);
-            robots.Add((x, y, vx, vy));
+            ParseRobot(input[lineRange], out xs[ri], out ys[ri], out vxs[ri], out vys[ri]);
+            ri++;
         }
 
         var rowsRepeat = -1;
         var colsRepeat = -1;
         
+        Span<byte> rowCounts = stackalloc byte[height];
+        Span<byte> colCounts = stackalloc byte[width];
+        
         // Because all robots repeat their x/y position every width/height iterations,
         // we can find a number which has the same modulo for our target cols and rows, and it will probably be a tree
         // We can assume that if there's a high robot concentration on a given row/column,
         // its probably going to form a tree in n iterations, once they synchronize with the robots in the other direction.
-        for (int i = 0; i < height; i++)
+        for (int i = 1; i < height; i++)
         {
-            robotCount.Fill(0);
-            SimulatePart2(robots, i, robotCount);
-
+            rowCounts.Fill(0);
+            colCounts.Fill(0);
+            SimulatePart2(xs, ys, vxs, vys, rowCounts, colCounts);
             if (rowsRepeat == -1)
                 for (int y = 0; y < height; y++)
                 {
-                    ReadOnlySpan<byte> row = robotCount.GetRowSpan(y);
-                    var c = row.Length - MemoryExtensions.Count(row, (byte)0);
+                    var c = rowCounts[y];
                     if (c >= 20)
                     {
                         rowsRepeat = i;
@@ -147,12 +195,7 @@ public class Day14 : AdventBase
             if (colsRepeat == -1)
                 for (int x = 0; x < width; x++)
                 {
-                    var c = 0;
-                    for (int y = 0; y < height; y++)
-                    {
-                        if (robotCount[y, x] != 0)
-                            c++;
-                    }
+                    var c = colCounts[x];
                     if (c >= 20)
                     {
                         colsRepeat = i;
@@ -163,7 +206,7 @@ public class Day14 : AdventBase
                 }
         }
 
-        // Chineese remainder theorem: bad version
+        // Chinese remainder theorem: bad version
         var k = rowsRepeat;
         while (true)
         {
