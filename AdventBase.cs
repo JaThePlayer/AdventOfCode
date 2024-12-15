@@ -56,7 +56,7 @@ public abstract class AdventBase
                     }
                 }
             }
-            return _projectRoot ?? throw new DirectoryNotFoundException("Can't find project root.");
+            return _projectRoot ?? Directory.GetCurrentDirectory() ?? throw new DirectoryNotFoundException("Can't find project root.");
         }
     }
 }
