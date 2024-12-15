@@ -159,21 +159,8 @@ public class Day15 : AdventBase
                 case (byte)'>':
                     TryMoveHorizontal(map, ref gx, ref gy, 1);
                     break;
-                case (byte)'^':
-                    if (!TryMoveVertical(map, ref gx, ref gy, -1, history) && history.Count > 0)
-                    {
-                        var span = CollectionsMarshal.AsSpan(history);
-                        for (var iq = span.Length - 1; iq >= 0; iq--)
-                        {
-                            var (yB, xB, yD, xD) = span[iq];
-                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yB, xB)) = 0x2e2e; // ..
-                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yD, xD)) = 0x5d5b; // []
-                        }
-                    }
-                    history.Clear();
-                    break;
-                case (byte)'v':
-                    if (!TryMoveVertical(map, ref gx, ref gy, 1, history) && history.Count > 0)
+                case (byte)'^' or (byte)'v':
+                    if (!TryMoveVertical(map, ref gx, ref gy, inputs[i] == '^' ? -1 : 1, history) && history.Count > 0)
                     {
                         var span = CollectionsMarshal.AsSpan(history);
                         for (var iq = span.Length - 1; iq >= 0; iq--)
@@ -186,15 +173,10 @@ public class Day15 : AdventBase
                     history.Clear();
                     break;
             }
-
-            //Console.WriteLine($"After {i}: ------");
-            //PrintBoard(map, gx, gy);
         }
 
         // gps
-
         ulong sum = 0;
-
         for (int y = 1; y < map.Height - 1; y++)
         {
             var row = map.GetRowSpan(y);
@@ -203,11 +185,11 @@ public class Day15 : AdventBase
                 if (row[x] == '[')
                 {
                     sum += (ulong)(y * 100 + x);
+                    x++;
                 }
             }
         }
 
-        //PrintBoard(map, gx, gy);
         return sum; // 1437468
         
         static bool TryMoveHorizontal(Span2D<byte> map, ref int x, ref int y, int ox)

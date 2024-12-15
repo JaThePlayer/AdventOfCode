@@ -127,7 +127,7 @@ public class Day14 : AdventBase
             i += VecInt.Count;
         }
         
-        while (i <  xs.Length)
+        while (i < xs.Length)
         {
             ref var x = ref xs.DangerousGetReferenceAt(i);
             ref var y = ref ys.DangerousGetReferenceAt(i);
