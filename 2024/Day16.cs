@@ -33,11 +33,25 @@ Use ints instead of longs
 |------- |---------:|---------:|---------:|--------:|--------:|--------:|----------:|
 | Part1  | 11.89 ms | 0.049 ms | 0.043 ms | 46.8750 | 46.8750 | 46.8750 | 174.97 KB |
 | Part2  | 12.02 ms | 0.076 ms | 0.071 ms | 46.8750 | 46.8750 | 46.8750 | 194.41 KB |
+
+Stackalloc, cleanup, no more `visited` map in p2.
+| Method | Mean     | Error    | StdDev   | Allocated |
+|------- |---------:|---------:|---------:|----------:|
+| Part1  | 11.98 ms | 0.029 ms | 0.024 ms |      30 B |
+| Part2  | 11.97 ms | 0.107 ms | 0.100 ms |      30 B |
+
+Only check every 2 tiles
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 9.750 ms | 0.0289 ms | 0.0256 ms |      30 B |
+| Part2  | 9.537 ms | 0.0557 ms | 0.0493 ms |      30 B |
  */
 public class Day16 : AdventBase
 {
     public override int Year => 2024;
     public override int Day => 16;
+
+    private const int step = 2;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetCost<TLeft, TRight>()
@@ -45,18 +59,18 @@ public class Day16 : AdventBase
         where TRight : IConst<Direction>
     {
         if (TLeft.Value == TRight.Value)
-            return 1;
+            return step;
         
         return (TRight.Value, TLeft.Value) switch
         {
-            (Direction.Right, Direction.Up or Direction.Down) => 1001,
-            (Direction.Right, Direction.Left) => 2001,
-            (Direction.Left, Direction.Up or Direction.Down) => 1001,
-            (Direction.Left, Direction.Right) => 2001,
-            (Direction.Up, Direction.Left or Direction.Right) => 1001,
-            (Direction.Up, Direction.Down) => 2001,
-            (Direction.Down, Direction.Left or Direction.Right) => 1001,
-            (Direction.Down, Direction.Up) => 2001,
+            (Direction.Right, Direction.Up or Direction.Down) => 1000 + step,
+            (Direction.Right, Direction.Left) => 2000 + step,
+            (Direction.Left, Direction.Up or Direction.Down) => 1000 + step,
+            (Direction.Left, Direction.Right) => 2000 + step,
+            (Direction.Up, Direction.Left or Direction.Right) => 1000 + step,
+            (Direction.Up, Direction.Down) => 2000 + step,
+            (Direction.Down, Direction.Left or Direction.Right) => 1000 + step,
+            (Direction.Down, Direction.Up) => 2000 + step,
             _ => 1,
         };
     }
@@ -65,64 +79,20 @@ public class Day16 : AdventBase
     private int GetCost(Direction curDir, Direction targetDir)
     {
         if (curDir == targetDir)
-            return 1;
+            return step;
         
         return (targetDir, curDir) switch
         {
-            (Direction.Right, Direction.Up or Direction.Down) => 1001,
-            (Direction.Right, Direction.Left) => 2001,
-            (Direction.Left, Direction.Up or Direction.Down) => 1001,
-            (Direction.Left, Direction.Right) => 2001,
-            (Direction.Up, Direction.Left or Direction.Right) => 1001,
-            (Direction.Up, Direction.Down) => 2001,
-            (Direction.Down, Direction.Left or Direction.Right) => 1001,
-            (Direction.Down, Direction.Up) => 2001,
+            (Direction.Right, Direction.Up or Direction.Down) => 1000 + step,
+            (Direction.Right, Direction.Left) => 2000 + step,
+            (Direction.Left, Direction.Up or Direction.Down) => 1000 + step,
+            (Direction.Left, Direction.Right) => 2000 + step,
+            (Direction.Up, Direction.Left or Direction.Right) => 1000 + step,
+            (Direction.Up, Direction.Down) => 2000 + step,
+            (Direction.Down, Direction.Left or Direction.Right) => 1000 + step,
+            (Direction.Down, Direction.Up) => 2000 + step,
             _ => 1,
         };
-    }
-    
-    private long Visit<TDir, TDirE>(ReadOnlySpan2D<byte> map, Span2D<long> scores, int x, int y, Direction dir, long score)
-        where TDir : IDirPicker
-        where TDirE : IConst<Direction>
-    {
-        ref var storedScore = ref scores[y, x];
-        if (storedScore <= score)
-        {
-            return score;
-        }
-        storedScore = score;
-        
-        if (TDir.Right && x + 1 < map.Width && map[y, x + 1] != '#')
-            Visit<ExceptLeftPicker, DirectionRight>(map, scores, x + 1, y, Direction.Right, score + GetCost<TDirE, DirectionRight>());
-        if (TDir.Left && x > 1 && map[y, x - 1] != '#')
-            Visit<ExceptRightPicker, DirectionLeft>(map, scores, x - 1, y, Direction.Left, score + GetCost<TDirE, DirectionLeft>());
-        if (TDir.Up && y > 1 && map[y - 1, x] != '#')
-            Visit<ExceptDownPicker, DirectionUp>(map, scores, x , y - 1, Direction.Up, score + GetCost<TDirE, DirectionUp>());
-        if (TDir.Down && y + 1 < map.Height && map[y + 1, x] != '#')
-            Visit<ExceptUpPicker, DirectionDown>(map, scores, x , y + 1, Direction.Down, score + GetCost<TDirE, DirectionDown>());
-        
-        return score;
-    }
-    
-    
-    protected override object Part1Impl()
-    {
-        var mapOrig = Input.Create2DMap();
-        var map1d = new byte[mapOrig.Width * mapOrig.Height];
-        var map = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height,mapOrig.Width, 0);
-        mapOrig.CopyTo(map1d);
-        
-        var scores1d = new (int, Direction)[(map.Width-1) * map.Height];
-        var scores = Span2D<(int, Direction)>.DangerousCreate(ref scores1d[0], map.Height,map.Width-1, 0);
-        scores.Fill((int.MaxValue, Direction.Right));
-        
-        var sx = 1;
-        var sy = map.Height - 2;
-        var dir = Direction.Right;
-
-        Visit2<AllDirPicker, DirectionRight>(map, scores, sx, sy, 0);
-
-        return scores[1, scores.Width - 2].Item1; // 127520
     }
 
     private bool Visit2<TDir, TDirE>(Span2D<byte> map, Span2D<(int, Direction)> scores, int x, int y, int score)
@@ -130,22 +100,20 @@ public class Day16 : AdventBase
         where TDirE : IConst<Direction>
     {
         ref var storedScore = ref scores.DangerousGetReferenceAt(y, x);
-        //var normalizedScore = (ulong)storedScore.Item1 + (ulong)GetCost(storedScore.Item2, dir) - 1;
         if (storedScore.Item1 <= score)
-        {
-            return true; // return normalizedScore == (ulong)score;
-        }
+            return true;
+        
         storedScore = (score, TDirE.Value);
-        bool anySuccess = false;
+        var anySuccess = false;
         
         if (TDir.Right && map.DangerousGetReferenceAt(y, x + 1) != '#')
-            anySuccess |= Visit2<ExceptLeftPicker, DirectionRight>(map, scores, x + 1, y, score + GetCost<TDirE, DirectionRight>());
+            anySuccess |= Visit2<ExceptLeftPicker, DirectionRight>(map, scores, x + step, y, score + GetCost<TDirE, DirectionRight>());
         if (TDir.Left && map.DangerousGetReferenceAt(y, x - 1) != '#')
-            anySuccess |= Visit2<ExceptRightPicker, DirectionLeft>(map, scores, x - 1, y, score + GetCost<TDirE, DirectionLeft>());
+            anySuccess |= Visit2<ExceptRightPicker, DirectionLeft>(map, scores, x - step, y, score + GetCost<TDirE, DirectionLeft>());
         if (TDir.Up && map.DangerousGetReferenceAt(y - 1, x) != '#')
-            anySuccess |= Visit2<ExceptDownPicker, DirectionUp>(map, scores, x , y - 1, score + GetCost<TDirE, DirectionUp>());
+            anySuccess |= Visit2<ExceptDownPicker, DirectionUp>(map, scores, x , y - step, score + GetCost<TDirE, DirectionUp>());
         if (TDir.Down && map.DangerousGetReferenceAt(y + 1, x) != '#')
-            anySuccess |= Visit2<ExceptUpPicker, DirectionDown>(map, scores, x , y + 1, score + GetCost<TDirE, DirectionDown>());
+            anySuccess |= Visit2<ExceptUpPicker, DirectionDown>(map, scores, x , y + step, score + GetCost<TDirE, DirectionDown>());
 
         if (y == 1 && x == scores.Width - 2)
             return true;
@@ -159,76 +127,85 @@ public class Day16 : AdventBase
         return anySuccess;
     }
     
-    private bool Visit3<TDir>(Span2D<byte> map, Span2D<(int, Direction)> scores, Span2D<bool> visited, int x, int y, Direction dir, int score, ref int visitedCount)
+    private void VisitBestPathLocations<TDir, TDirE>(Span2D<byte> map, Span2D<(int, Direction)> scores, 
+        int x, int y, int score, ref int visitedCount)
         where TDir : IDirPicker
+        where TDirE : IConst<Direction>
     {
-        ref var v = ref visited[y, x];
-        if (!v)
+        ref var storedScore = ref scores[y, x];
+        var normalizedScore = (ulong)storedScore.Item1 + (ulong)GetCost(Rotate(Rotate(TDirE.Value)), storedScore.Item2) - step;
+        if (normalizedScore != (ulong)score)
+            return;
+        if (map[y, x] == '#')
         {
-            ref var storedScore = ref scores[y, x];
-            var normalizedScore = (ulong)storedScore.Item1 + (ulong)GetCost(Rotate(Rotate(storedScore.Item2)), dir) - 1;
-            
-            if (normalizedScore == (ulong)score)
-            {
-                v = true;
-                visitedCount++;
-            }
-            else
-                return false;
+            visitedCount++;
+            return;
         }
-        else
-            return false;
+        map[y, x] = (byte)'#';
+        visitedCount += 2;
         
-        bool anySuccess = false;
-        if (TDir.Down && y + 1 < map.Height && map[y + 1, x] != '#')
-            anySuccess |= Visit3<ExceptUpPicker>(map, scores, visited, x , y + 1, Direction.Down, score - GetCost(dir, Direction.Down), ref visitedCount);
-        if (TDir.Right && x + 1 < map.Width && map[y, x + 1] != '#')
-            anySuccess |= Visit3<ExceptLeftPicker>(map, scores, visited, x + 1, y, Direction.Right, score - GetCost(dir, Direction.Right), ref visitedCount);
-        if (TDir.Left && x > 1 && map[y, x - 1] != '#')
-            anySuccess |= Visit3<ExceptRightPicker>(map, scores, visited, x - 1, y, Direction.Left, score - GetCost(dir, Direction.Left), ref visitedCount);
-        if (TDir.Up && y > 1 && map[y - 1, x] != '#')
-            anySuccess |= Visit3<ExceptDownPicker>(map, scores, visited, x , y - 1, Direction.Up, score - GetCost(dir, Direction.Up), ref visitedCount);
+        if (TDir.Down && map[y + 1, x] != '#')
+            VisitBestPathLocations<ExceptUpPicker, DirectionDown>(map, scores, x , y + step, score - GetCost<TDirE, DirectionDown>(), ref visitedCount);
+        if (TDir.Right && map[y, x + 1] != '#')
+            VisitBestPathLocations<ExceptLeftPicker, DirectionRight>(map, scores, x + step, y, score - GetCost<TDirE, DirectionRight>(), ref visitedCount);
+        if (TDir.Left && map[y, x - 1] != '#')
+            VisitBestPathLocations<ExceptRightPicker, DirectionLeft>(map, scores, x - step, y, score - GetCost<TDirE, DirectionLeft>(), ref visitedCount);
+        if (TDir.Up && map[y - 1, x] != '#')
+            VisitBestPathLocations<ExceptDownPicker, DirectionUp>(map, scores, x , y - step, score - GetCost<TDirE, DirectionUp>(), ref visitedCount);
+    }
+    
+    protected override object Part1Impl()
+    {
+        var mapOrig = Input.Create2DMap();
+        Span<byte> map1d = stackalloc byte[mapOrig.Width * mapOrig.Height];
+        var map = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height,mapOrig.Width, 0);
+        mapOrig.CopyTo(map1d);
+        
+        Span<(int, Direction)> scores1d = stackalloc (int, Direction)[(map.Width-1) * map.Height];
+        var scores = Span2D<(int, Direction)>.DangerousCreate(ref scores1d[0], map.Height,map.Width-1, 0);
+        scores.Fill((int.MaxValue, Direction.Right));
+        
+        Visit2<AllDirPicker, DirectionRight>(map, scores, 1, map.Height - 2, 0);
 
-        if (!anySuccess)
-        {
-            //visitedCount--;
-            return false;
-        }
-        
-        return anySuccess;
+        return scores[1, scores.Width - 2].Item1; // 127520
     }
     
     protected override object Part2Impl()
     {
         var mapOrig = Input.Create2DMap();
-        var map1d = new byte[mapOrig.Width * mapOrig.Height];
+        Span<byte> map1d = stackalloc byte[mapOrig.Width * mapOrig.Height];
         var map = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height,mapOrig.Width, 0);
         mapOrig.CopyTo(map1d);
         
-        var scores1d = new (int, Direction)[(map.Width-1) * map.Height];
+        Span<(int, Direction)> scores1d = stackalloc (int, Direction)[(map.Width-1) * map.Height];
         var scores = Span2D<(int, Direction)>.DangerousCreate(ref scores1d[0], map.Height,map.Width-1, 0);
         scores.Fill((int.MaxValue, Direction.Right));
         
-        var sx = 1;
-        var sy = map.Height - 2;
-        var dir = Direction.Right;
-        
-        Visit2<AllDirPicker, DirectionRight>(map, scores, sx, sy, 0);
-
-        //PrintBoard(map, scores);
-        
-        var visited1d = new bool[(map.Width-1) * map.Height];
-        var visited = Span2D<bool>.DangerousCreate(ref visited1d[0], map.Height,map.Width-1, 0);
+        Visit2<AllDirPicker, DirectionRight>(map, scores, 1, map.Height - 2, 0);
 
         var unique = 0;
-        Visit3<AllDirPicker>(map, scores, visited, scores.Width - 2, 1, 
-            Rotate(Rotate(scores[1,scores.Width - 2 ].Item2)), scores[1,scores.Width - 2 ].Item1, ref unique);
+        var dir = Rotate(Rotate(scores[1, scores.Width - 2].Item2));
+        switch (dir)
+        {
+            case Direction.Right:
+                VisitBestPathLocations<AllDirPicker, DirectionRight>(map, scores, scores.Width - 2, 1,
+                    scores[1,scores.Width - 2].Item1, ref unique);
+                break;
+            case Direction.Left:
+                VisitBestPathLocations<AllDirPicker, DirectionLeft>(map, scores, scores.Width - 2, 1,
+                    scores[1,scores.Width - 2].Item1, ref unique);
+                break;
+            case Direction.Up:
+                VisitBestPathLocations<AllDirPicker, DirectionUp>(map, scores, scores.Width - 2, 1,
+                    scores[1,scores.Width - 2].Item1, ref unique);
+                break;
+            case Direction.Down:
+                VisitBestPathLocations<AllDirPicker, DirectionDown>(map, scores, scores.Width - 2, 1,
+                    scores[1,scores.Width - 2].Item1, ref unique);
+                break;
+        }
 
-        //Console.WriteLine();
-        //Console.WriteLine();
-        //PrintBoardUnique(map, visited);
-
-        return unique; // 565
+        return unique - 1; // 565
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
