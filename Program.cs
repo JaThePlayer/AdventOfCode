@@ -26,9 +26,10 @@ AdventBase[] days = [
     new Day13(),
     new Day14(),
     new Day15(),
+    new Day16(),
 ];
 
-var day = days[15 - 1];
+var day = days[16 - 1];
 Console.WriteLine(day.Part1());
 Console.WriteLine(day.Part2());
 //return;
