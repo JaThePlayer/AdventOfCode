@@ -9,6 +9,12 @@ Initial
 |------- |---------:|---------:|---------:|--------:|--------:|--------:|----------:|
 | Part1  | 15.51 ms | 0.101 ms | 0.079 ms | 31.2500 | 31.2500 | 31.2500 | 155.39 KB |
 | Part2  | 14.51 ms | 0.064 ms | 0.057 ms | 93.7500 | 93.7500 | 93.7500 | 349.74 KB |
+
+Part1: Use Visit2
+| Method | Mean     | Error    | StdDev   | Gen0    | Gen1    | Gen2    | Allocated |
+|------- |---------:|---------:|---------:|--------:|--------:|--------:|----------:|
+| Part1  | 14.42 ms | 0.062 ms | 0.055 ms | 93.7500 | 93.7500 | 93.7500 |  330.3 KB |
+| Part2  | 14.51 ms | 0.039 ms | 0.032 ms | 93.7500 | 93.7500 | 93.7500 | 349.74 KB |
  */
 public class Day16 : AdventBase
 {
@@ -59,18 +65,22 @@ public class Day16 : AdventBase
     
     protected override object Part1Impl()
     {
-        var map = Input.Create2DMap();
-        var visited1d = new long[(map.Width-1) * map.Height];
-        var scores = Span2D<long>.DangerousCreate(ref visited1d[0], map.Height,map.Width-1, 0);
-        scores.Fill(long.MaxValue);
+        var mapOrig = Input.Create2DMap();
+        var map1d = new byte[mapOrig.Width * mapOrig.Height];
+        var map = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height,mapOrig.Width, 0);
+        mapOrig.CopyTo(map1d);
+        
+        var scores1d = new (long, Direction)[(map.Width-1) * map.Height];
+        var scores = Span2D<(long, Direction)>.DangerousCreate(ref scores1d[0], map.Height,map.Width-1, 0);
+        scores.Fill((long.MaxValue, Direction.Right));
         
         var sx = 1;
         var sy = map.Height - 2;
         var dir = Direction.Right;
 
-        Visit<AllDirPicker>(map, scores, sx, sy, dir, 0);
+        Visit2<AllDirPicker>(map, scores, sx, sy, dir, 0);
 
-        return scores[1, scores.Width - 2]; // 127520
+        return scores[1, scores.Width - 2].Item1; // 127520
     }
 
     private bool Visit2<TDir>(Span2D<byte> map, Span2D<(long, Direction)> scores, int x, int y, Direction dir, long score)
@@ -130,15 +140,11 @@ public class Day16 : AdventBase
         if (TDir.Down && y + 1 < map.Height && map[y + 1, x] != '#')
             anySuccess |= Visit3<ExceptUpPicker>(map, scores, visited, x , y + 1, Direction.Down, score - GetCost(dir, Direction.Down), ref visitedCount);
         if (TDir.Right && x + 1 < map.Width && map[y, x + 1] != '#')
-        {
             anySuccess |= Visit3<ExceptLeftPicker>(map, scores, visited, x + 1, y, Direction.Right, score - GetCost(dir, Direction.Right), ref visitedCount);
-        }
-           
         if (TDir.Left && x > 1 && map[y, x - 1] != '#')
             anySuccess |= Visit3<ExceptRightPicker>(map, scores, visited, x - 1, y, Direction.Left, score - GetCost(dir, Direction.Left), ref visitedCount);
         if (TDir.Up && y > 1 && map[y - 1, x] != '#')
             anySuccess |= Visit3<ExceptDownPicker>(map, scores, visited, x , y - 1, Direction.Up, score - GetCost(dir, Direction.Up), ref visitedCount);
-
 
         if (!anySuccess)
         {
@@ -179,7 +185,7 @@ public class Day16 : AdventBase
         //Console.WriteLine();
         //PrintBoardUnique(map, visited);
 
-        return unique;
+        return unique; // 565
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
