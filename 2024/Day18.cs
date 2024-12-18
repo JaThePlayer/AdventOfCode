@@ -1,5 +1,6 @@
 //#define TEST_INPUT
 
+using System.Runtime.CompilerServices;
 using CommunityToolkit.HighPerformance;
 
 namespace AoC._2024;
@@ -28,6 +29,18 @@ P2: Binary search
 |------- |---------:|--------:|--------:|-------:|----------:|
 | Part1  | 149.0 us | 0.54 us | 0.42 us | 0.9766 |    8368 B |
 | Part2  | 109.1 us | 0.31 us | 0.26 us |      - |      32 B |
+
+P1: no more stackalloc, use shorts
+| Method | Mean      | Error    | StdDev   | Gen0   | Allocated |
+|------- |----------:|---------:|---------:|-------:|----------:|
+| Part1  | 124.95 us | 1.410 us | 1.250 us | 2.6855 |   23552 B |
+| Part2  |  99.48 us | 0.462 us | 0.385 us |      - |      32 B |
+
+P1: no more map
+| Method | Mean      | Error    | StdDev   | Gen0   | Allocated |
+|------- |----------:|---------:|---------:|-------:|----------:|
+| Part1  | 103.20 us | 1.989 us | 2.915 us | 2.1973 |   18480 B |
+| Part2  |  99.65 us | 0.358 us | 0.335 us |      - |      32 B |
  */
 public class Day18 : AdventBase
 {
@@ -43,30 +56,31 @@ public class Day18 : AdventBase
     
     public override int Year => 2024;
     public override int Day => 18;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static (int x, int y) ParseLine(ReadOnlySpan<byte> span)
+    {
+        if (span.Length == 5)
+            return (Util.FastParse2DigitInt<int>(span), Util.FastParse2DigitInt<int>(span, 3));
+
+        span.ParseTwoSplits((byte)',', Util.FastParseInt<int>, out var x, out var y);
+        return (x, y);
+    }
     
     protected override object Part1Impl()
     {
-        Span<byte> map1d = stackalloc byte[MapWidth * MapHeight];
-        var map = Span2D<byte>.DangerousCreate(ref map1d[0], MapHeight, MapWidth, 0);
-        Span<int> scores1d = stackalloc int[MapWidth * MapHeight];
-        var scores = Span2D<int>.DangerousCreate(ref scores1d[0], MapHeight, MapWidth, 0);
-        scores1d.Fill(int.MaxValue);
-
-        var i = 0;
-        foreach (var (x, y) in Input.TextU8.ParseSplits((byte)'\n', 0, (span, i) =>
-                 {
-                     span.ParseTwoSplits((byte)',', Util.FastParseInt<int>, out var x, out var y);
-                     return (x, y);
-                 }))
+        Span<short> scores1d = new short[MapWidth * MapHeight];
+        scores1d.Fill(short.MaxValue);
+        var scores = Span2D<short>.DangerousCreate(ref scores1d[0], MapHeight, MapWidth, 0);
+        
+        var i = MaxBytes;
+        foreach (var (x, y) in Input.TextU8.ParseSplits((byte)'\n', 0, (span, _) => ParseLine(span)))
         {
-            map[y, x] = (byte)'#';
-            i++;
-            if (i >= MaxBytes)
+            scores.DangerousGetReferenceAt(y, x) = short.MinValue;
+            i--;
+            if (i <= 0)
                 break;
         }
-
-        //Span<byte> visited1d = stackalloc byte[MapWidth * MapHeight];
-        //var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
         
         PriorityQueue<(int x, int y), int> queue = new();
         scores[0, 0] = 0;
@@ -75,44 +89,34 @@ public class Day18 : AdventBase
         while (queue.Count > 0)
         {
             var (x, y) = queue.Dequeue();
-            /*
-            ref var visit = ref visited[y, x];
-            if (visit != 0)
-                continue;
-            visit = 1;
-            */
-            ref var tile = ref map.DangerousGetReferenceAt(y, x);
-            if (tile == '#')
-                continue;
-            tile = (byte)'#';
+            ref var score = ref scores.DangerousGetReferenceAt(y, x);
             
-            var score = scores[y, x];
-            if (y == scores.Height - 1 && x == scores.Width - 1)
-                return score;
+            if (y == MapHeight - 1 && x == MapWidth - 1)
+                return score; // 264
+            var prevScore = score;
+            score = short.MinValue;
             
-            if (x + 1 < map.Width)
-                Check(map, scores, score, x + 1, y);
+            if (x + 1 < MapWidth)
+                Check(scores, prevScore, x + 1, y);
             if (x >= 1)
-                Check(map, scores, score, x - 1, y);
+                Check(scores, prevScore, x - 1, y);
             if (y >= 1)
-                Check(map, scores, score, x, y-1);
-            if (y + 1 < map.Height)
-                Check(map, scores, score, x, y+1);
+                Check(scores, prevScore, x, y-1);
+            if (y + 1 < MapHeight)
+                Check(scores, prevScore, x, y+1);
         }
 
-        return scores[^1, ^1]; // 264
+        return -1;
 
-        void Check(Span2D<byte> map, Span2D<int> scores, int score, int x2, int y2)
+        void Check(Span2D<short> scores, short score, int x2, int y2)
         {
-            if (map.DangerousGetReferenceAt(y2, x2) == '#')
-                return;
-            ref var newScore = ref scores[y2, x2];
+            ref var newScore = ref scores.DangerousGetReferenceAt(y2, x2);
             var alt = score + 1;
             if (alt >= newScore)
                 return;
             
-            newScore = alt;
-            queue.Enqueue((x2, y2), alt);
+            newScore = (short)alt;
+            queue.Enqueue((x2, y2), newScore);
         }
     }
     
@@ -129,9 +133,9 @@ public class Day18 : AdventBase
 
         if (TDir.Right && x + 1 < map.Width && map.DangerousGetReferenceAt(y, x + 1) != '#' && CanSolvePart2<ExceptLeftPicker>(map, visited, x + 1, y))
             return true;
-        if (TDir.Up && y >= 1 && map.DangerousGetReferenceAt(y - 1, x) != '#' && CanSolvePart2<ExceptDownPicker>(map, visited, x , y - 1))
-            return true;
         if (TDir.Down && y + 1 < map.Height && map.DangerousGetReferenceAt(y + 1, x) != '#' && CanSolvePart2<ExceptUpPicker>(map, visited, x , y + 1))
+            return true;
+        if (TDir.Up && y >= 1 && map.DangerousGetReferenceAt(y - 1, x) != '#' && CanSolvePart2<ExceptDownPicker>(map, visited, x , y - 1))
             return true;
         return TDir.Left && x >= 1 && map.DangerousGetReferenceAt(y, x - 1) != '#' && CanSolvePart2<ExceptRightPicker>(map, visited, x - 1, y);
     }
@@ -139,37 +143,39 @@ public class Day18 : AdventBase
     protected override object Part2Impl()
     {
         Span<byte> map1d = stackalloc byte[MapWidth * MapHeight];
-        var map = Span2D<byte>.DangerousCreate(ref map1d[0], MapHeight, MapWidth, 0);
         Span<byte> visited1d = stackalloc byte[MapWidth * MapHeight];
+        Span<(int x, int y)> numbersBuffer = stackalloc (int x, int y)[4192];
+        var map = Span2D<byte>.DangerousCreate(ref map1d[0], MapHeight, MapWidth, 0);
         var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
-
-        Span<(int x, int y)> numbersBuffer = stackalloc (int x, int y)[4000];
-        var numbers = Input.TextU8
-            .SplitSlim((byte)'\n')
-            .Select(span =>
-            {
-                span.ParseTwoSplits((byte)',', Util.FastParseInt<int>, out var x, out var y);
-                return (x, y);
-            })
-            .FillSpan(numbersBuffer);
-
+        
+        var numbers = ParseAllNumbers(numbersBuffer);
 
         var startI = 0;
         var endI = numbers.Length;
+        
+        var middle2 = endI / 2;
+        for (int i = startI; i <= middle2; i++)
+        {
+            var (x, y) = numbers[i];
+            map.DangerousGetReferenceAt(y, x) = (byte)'#';
+        }
+        
         while (true)
         {
             var middle = ((endI - startI) / 2)+startI;
-            for (int i = startI; i <= middle; i++)
-            {
-                var (x, y) = numbers[i];
-                map[y, x] = (byte)'#';
-            }
             
             visited1d.Fill(0);
             if (CanSolvePart2<AllDirPicker>(map, visited, 0, 0))
             {
                 // The solution is in the latter half
                 startI = middle+1;
+                
+                var newMiddle = ((endI - startI) / 2)+startI;
+                for (int i = startI; i <= newMiddle; i++)
+                {
+                    var (x, y) = numbers.DangerousGetReferenceAt(i);
+                    map.DangerousGetReferenceAt(y, x) = (byte)'#';
+                }
             }
             else
             {
@@ -179,19 +185,27 @@ public class Day18 : AdventBase
                     var (x, y) = numbers[startI];
                     return $"{x},{y}";
                 }
-                // We overshot already
+                // We overshot already - undo half of the inputs
                 endI = middle;
-                
                 var newMiddle = ((endI - startI) / 2)+startI;
-                for (int i = newMiddle; i <= middle; i++)
+                for (int i = newMiddle+1; i <= middle; i++)
                 {
-                    var (x, y) = numbers[i];
-                    map[y, x] = 0;
+                    var (x, y) = numbers.DangerousGetReferenceAt(i);
+                    map.DangerousGetReferenceAt(y, x) = 0;
                 }
             }
         }
+        
+        // Extracted to separate method to help the jit, saves 30us for me
+        Span<(int x, int y)> ParseAllNumbers(Span<(int x, int y)> numbersBuffer)
+        {
+            return Input.TextU8
+                .SplitSlim((byte)'\n')
+                .Select(span => ParseLine(span))
+                .FillSpan(numbersBuffer);
+        }
     }
-    
+
     private static void PrintBoard(ReadOnlySpan2D<byte> map, Span2D<int> scores)
     {
         for (int y = 0; y < map.Height; y++)
