@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace AoC;
@@ -52,7 +53,8 @@ public static class LinqExt
         return new(arr, separator);
     }
 
-    public static bool SplitTwo<T>(this ReadOnlySpan<T> input, T sep, out ReadOnlySpan<T> left, out ReadOnlySpan<T> right) where T : IEquatable<T>
+    public static bool SplitTwo<T>(this ReadOnlySpan<T> input, T sep, out ReadOnlySpan<T> left, out ReadOnlySpan<T> right) 
+        where T : IEquatable<T>
     {
         var idx = input.IndexOf(sep);
         if (idx == -1) {
@@ -63,6 +65,22 @@ public static class LinqExt
 
         left = input[..idx];
         right = input[(idx + 1)..];
+        return true;
+    }
+
+    public static bool ParseTwoSplits<T, TRet>(this ReadOnlySpan<T> input, T sep, Func<ReadOnlySpan<T>, TRet> parse,
+        [NotNullWhen(true)] out TRet? left, [NotNullWhen(true)] out TRet? right)
+        where T : IEquatable<T>
+    {
+        var idx = input.IndexOf(sep);
+        if (idx == -1) {
+            left = default!;
+            right = default!;
+            return false;
+        }
+
+        left = parse(input[..idx])!;
+        right = parse(input[(idx + 1)..])!;
         return true;
     }
     
