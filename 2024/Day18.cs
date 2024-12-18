@@ -26,8 +26,8 @@ Rework enqueueing in p1
 P2: Binary search
 | Method | Mean     | Error   | StdDev  | Gen0   | Allocated |
 |------- |---------:|--------:|--------:|-------:|----------:|
-| Part1  | 150.1 us | 0.56 us | 0.50 us | 0.9766 |    8368 B |
-| Part2  | 119.2 us | 0.52 us | 0.46 us |      - |      32 B |
+| Part1  | 149.0 us | 0.54 us | 0.42 us | 0.9766 |    8368 B |
+| Part2  | 109.1 us | 0.31 us | 0.26 us |      - |      32 B |
  */
 public class Day18 : AdventBase
 {
@@ -43,27 +43,6 @@ public class Day18 : AdventBase
     
     public override int Year => 2024;
     public override int Day => 18;
-    
-    private bool VisitPart2<TDir>(Span2D<byte> map, Span2D<int> scores, int x, int y, int score)
-        where TDir : IDirPicker
-    {
-        ref var storedScore = ref scores.DangerousGetReferenceAt(y, x);
-        if (storedScore != int.MaxValue)
-            return false;
-        
-        storedScore = score;
-        
-        if (y == scores.Height - 1 && x == scores.Width - 1)
-            return true;
-
-        if (TDir.Right && x + 1 < map.Width && map.DangerousGetReferenceAt(y, x + 1) != '#' && VisitPart2<ExceptLeftPicker>(map, scores, x + 1, y, score + 1))
-            return true;
-        if (TDir.Up && y >= 1 && map.DangerousGetReferenceAt(y - 1, x) != '#' && VisitPart2<ExceptDownPicker>(map, scores, x , y - 1, score + 1))
-            return true;
-        if (TDir.Down && y + 1 < map.Height && map.DangerousGetReferenceAt(y + 1, x) != '#' && VisitPart2<ExceptUpPicker>(map, scores, x , y + 1, score + 1))
-            return true;
-        return TDir.Left && x >= 1 && map.DangerousGetReferenceAt(y, x - 1) != '#' && VisitPart2<ExceptRightPicker>(map, scores, x - 1, y, score + 1);
-    }
     
     protected override object Part1Impl()
     {
@@ -136,17 +115,33 @@ public class Day18 : AdventBase
             queue.Enqueue((x2, y2), alt);
         }
     }
+    
+    private bool CanSolvePart2<TDir>(Span2D<byte> map, Span2D<byte> visited, int x, int y)
+        where TDir : IDirPicker
+    {
+        ref var visit = ref visited.DangerousGetReferenceAt(y, x);
+        if (visit != 0)
+            return false;
+        visit = 1;
+        
+        if (y == visited.Height - 1 && x == visited.Width - 1)
+            return true;
 
+        if (TDir.Right && x + 1 < map.Width && map.DangerousGetReferenceAt(y, x + 1) != '#' && CanSolvePart2<ExceptLeftPicker>(map, visited, x + 1, y))
+            return true;
+        if (TDir.Up && y >= 1 && map.DangerousGetReferenceAt(y - 1, x) != '#' && CanSolvePart2<ExceptDownPicker>(map, visited, x , y - 1))
+            return true;
+        if (TDir.Down && y + 1 < map.Height && map.DangerousGetReferenceAt(y + 1, x) != '#' && CanSolvePart2<ExceptUpPicker>(map, visited, x , y + 1))
+            return true;
+        return TDir.Left && x >= 1 && map.DangerousGetReferenceAt(y, x - 1) != '#' && CanSolvePart2<ExceptRightPicker>(map, visited, x - 1, y);
+    }
+    
     protected override object Part2Impl()
     {
         Span<byte> map1d = stackalloc byte[MapWidth * MapHeight];
         var map = Span2D<byte>.DangerousCreate(ref map1d[0], MapHeight, MapWidth, 0);
-        Span<int> scores1d = stackalloc int[MapWidth * MapHeight];
-        var scores = Span2D<int>.DangerousCreate(ref scores1d[0], MapHeight, MapWidth, 0);
         Span<byte> visited1d = stackalloc byte[MapWidth * MapHeight];
         var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
-        visited.Fill(0);
-        scores1d.Fill(int.MaxValue);
 
         Span<(int x, int y)> numbersBuffer = stackalloc (int x, int y)[4000];
         var numbers = Input.TextU8
@@ -170,9 +165,8 @@ public class Day18 : AdventBase
                 map[y, x] = (byte)'#';
             }
             
-            visited.Fill(0);
-            scores1d.Fill(int.MaxValue);
-            if (VisitPart2<AllDirPicker>(map, scores, 0, 0, 0))
+            visited1d.Fill(0);
+            if (CanSolvePart2<AllDirPicker>(map, visited, 0, 0))
             {
                 // The solution is in the latter half
                 startI = middle+1;
