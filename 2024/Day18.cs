@@ -1,3 +1,5 @@
+//#define TEST_INPUT
+
 using CommunityToolkit.HighPerformance;
 
 namespace AoC._2024;
@@ -14,40 +16,33 @@ Dijkstra's algorithm
 |------- |-----------:|--------:|--------:|-------:|----------:|
 | Part1  |   197.3 us | 1.16 us | 1.03 us | 0.9766 |    8368 B |
 | Part2  | 4,821.2 us | 3.77 us | 2.94 us |      - |      39 B |
+
+Rework enqueueing in p1
+| Method | Mean       | Error    | StdDev   | Gen0   | Allocated |
+|------- |-----------:|---------:|---------:|-------:|----------:|
+| Part1  |   150.0 us |  0.40 us |  0.36 us | 0.9766 |    8368 B |
+| Part2  | 4,783.5 us | 36.66 us | 34.29 us |      - |      39 B |
+
+P2: Binary search
+| Method | Mean     | Error   | StdDev  | Gen0   | Allocated |
+|------- |---------:|--------:|--------:|-------:|----------:|
+| Part1  | 150.1 us | 0.56 us | 0.50 us | 0.9766 |    8368 B |
+| Part2  | 119.2 us | 0.52 us | 0.46 us |      - |      32 B |
  */
 public class Day18 : AdventBase
 {
+    #if TEST_INPUT
+    private const int MapWidth = 6+1;
+    private const int MapHeight = 6 + 1;
+    private const int MaxBytes = 12;
+    #else
     private const int MapWidth = 70+1;
     private const int MapHeight = 70 + 1;
     private const int MaxBytes = 1024;
+    #endif
     
     public override int Year => 2024;
     public override int Day => 18;
-    
-    private bool VisitPart1<TDir>(Span2D<byte> map, Span2D<int> scores, int x, int y, int score)
-        where TDir : IDirPicker
-    {
-        ref var storedScore = ref scores.DangerousGetReferenceAt(y, x);
-        if (storedScore <= score)
-            return true;
-        
-        storedScore = score;
-        var anySuccess = false;
-        
-        if (TDir.Right && x + 1 < map.Width && map.DangerousGetReferenceAt(y, x + 1) != '#')
-            anySuccess |= VisitPart1<ExceptLeftPicker>(map, scores, x + 1, y, score + 1);
-        if (TDir.Left && x >= 1 && map.DangerousGetReferenceAt(y, x - 1) != '#')
-            anySuccess |= VisitPart1<ExceptRightPicker>(map, scores, x - 1, y, score + 1);
-        if (TDir.Up && y >= 1 && map.DangerousGetReferenceAt(y - 1, x) != '#')
-            anySuccess |= VisitPart1<ExceptDownPicker>(map, scores, x , y - 1, score + 1);
-        if (TDir.Down && y + 1 < map.Height && map.DangerousGetReferenceAt(y + 1, x) != '#')
-            anySuccess |= VisitPart1<ExceptUpPicker>(map, scores, x , y + 1, score + 1);
-
-        if (y == scores.Height - 1 && x == scores.Width - 1)
-            return true;
-
-        return anySuccess;
-    }
     
     private bool VisitBestPathLocations<TDir>(Span2D<byte> map, Span2D<int> scores, 
         int x, int y, int score, Span2D<byte> visited)
@@ -117,57 +112,55 @@ public class Day18 : AdventBase
                 break;
         }
 
-        Span<byte> visited1d = stackalloc byte[MapWidth * MapHeight];
-        var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
+        //Span<byte> visited1d = stackalloc byte[MapWidth * MapHeight];
+        //var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
         
         PriorityQueue<(int x, int y), int> queue = new();
         scores[0, 0] = 0;
         queue.Enqueue((0, 0), 0);
 
-        void Check(Span2D<byte> map, Span2D<byte> visited, Span2D<int> scores, int score, int x2, int y2)
-        {
-            if (map.DangerousGetReferenceAt(y2, x2) != '#')
-            {
-                ref var newScore = ref scores[y2, x2];
-                var alt = score + 1;
-                if (alt < newScore)
-                {
-                    newScore = alt;
-                    ref var visit = ref visited[y2, x2];
-                    if (visit == 0)
-                    {
-                        queue.Enqueue((x2, y2), alt);
-                        visit = 1;
-                    }
-                    else
-                    {
-                        if (queue.Remove((x2, y2), out _, out _))
-                            queue.Enqueue((x2, y2), alt);
-                    }
-                }
-            }
-        }
-
         while (queue.Count > 0)
         {
             var (x, y) = queue.Dequeue();
+            /*
+            ref var visit = ref visited[y, x];
+            if (visit != 0)
+                continue;
+            visit = 1;
+            */
+            ref var tile = ref map.DangerousGetReferenceAt(y, x);
+            if (tile == '#')
+                continue;
+            tile = (byte)'#';
+            
             var score = scores[y, x];
             if (y == scores.Height - 1 && x == scores.Width - 1)
                 return score;
             
             if (x + 1 < map.Width)
-                Check(map, visited, scores, score, x + 1, y);
+                Check(map, scores, score, x + 1, y);
             if (x >= 1)
-                Check(map, visited, scores, score, x - 1, y);
+                Check(map, scores, score, x - 1, y);
             if (y >= 1)
-                Check(map, visited, scores, score, x, y-1);
+                Check(map, scores, score, x, y-1);
             if (y + 1 < map.Height)
-                Check(map, visited, scores, score, x, y+1);
-            
-
+                Check(map, scores, score, x, y+1);
         }
 
         return scores[^1, ^1]; // 264
+
+        void Check(Span2D<byte> map, Span2D<int> scores, int score, int x2, int y2)
+        {
+            if (map.DangerousGetReferenceAt(y2, x2) == '#')
+                return;
+            ref var newScore = ref scores[y2, x2];
+            var alt = score + 1;
+            if (alt >= newScore)
+                return;
+            
+            newScore = alt;
+            queue.Enqueue((x2, y2), alt);
+        }
     }
 
     protected override object Part2Impl()
@@ -180,38 +173,55 @@ public class Day18 : AdventBase
         var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
         visited.Fill(0);
         scores1d.Fill(int.MaxValue);
-        VisitPart2<AllDirPicker>(map, scores, 0, 0, 0);
-        VisitBestPathLocations<AllDirPicker>(map, scores, scores.Width - 1, scores.Height - 1, scores[^1, ^1], visited);
 
-        var recalculations = 0;
+        Span<(int x, int y)> numbersBuffer = stackalloc (int x, int y)[4000];
+        var numbers = Input.TextU8
+            .SplitSlim((byte)'\n')
+            .Select(span =>
+            {
+                span.ParseTwoSplits((byte)',', Util.FastParseInt<int>, out var x, out var y);
+                return (x, y);
+            })
+            .FillSpan(numbersBuffer);
 
-        var i = 0;
-        foreach (var (x, y) in Input.TextU8.ParseSplits((byte)'\n', 0, (span, i) =>
-                 {
-                     span.ParseTwoSplits((byte)',', Util.FastParseInt<int>, out var x, out var y);
-                     return (x, y);
-                 }))
+
+        var startI = 0;
+        var endI = numbers.Length;
+        while (true)
         {
-            i++;
-            map[y, x] = (byte)'#';
-
-            if (visited[y, x] == 0)
-                continue;
+            var middle = ((endI - startI) / 2)+startI;
+            for (int i = startI; i <= middle; i++)
+            {
+                var (x, y) = numbers[i];
+                map[y, x] = (byte)'#';
+            }
             
-            // rock just landed on the best path, recalculate!
-            //Console.WriteLine($"RECALCULATING: {i}");
-            recalculations++;
             visited.Fill(0);
             scores1d.Fill(int.MaxValue);
-            if (!VisitPart2<AllDirPicker>(map, scores, 0, 0, 0))
+            if (VisitPart2<AllDirPicker>(map, scores, 0, 0, 0))
             {
-                //Console.WriteLine($"Recalc count: {recalculations}"); // 221
-                return $"{x},{y}"; // 41,26
+                // The solution is in the latter half
+                startI = middle+1;
             }
-            VisitBestPathLocations<AllDirPicker>(map, scores, scores.Width - 1, scores.Height - 1, scores[^1, ^1], visited);
+            else
+            {
+                // Impossible to solve the maze
+                if (startI == endI)
+                {
+                    var (x, y) = numbers[startI];
+                    return $"{x},{y}";
+                }
+                // We overshot already
+                endI = middle;
+                
+                var newMiddle = ((endI - startI) / 2)+startI;
+                for (int i = newMiddle; i <= middle; i++)
+                {
+                    var (x, y) = numbers[i];
+                    map[y, x] = 0;
+                }
+            }
         }
-
-        return -1;
     }
     
     private static void PrintBoard(ReadOnlySpan2D<byte> map, Span2D<int> scores)
