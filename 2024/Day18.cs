@@ -8,6 +8,12 @@ After part 2 rework
 |------- |----------:|----------:|----------:|----------:|
 | Part1  | 15.564 ms | 0.0541 ms | 0.0506 ms |      30 B |
 | Part2  |  4.604 ms | 0.0233 ms | 0.0218 ms |      39 B |
+
+Dijkstra's algorithm
+| Method | Mean       | Error   | StdDev  | Gen0   | Allocated |
+|------- |-----------:|--------:|--------:|-------:|----------:|
+| Part1  |   197.3 us | 1.16 us | 1.03 us | 0.9766 |    8368 B |
+| Part2  | 4,821.2 us | 3.77 us | 2.94 us |      - |      39 B |
  */
 public class Day18 : AdventBase
 {
@@ -111,9 +117,57 @@ public class Day18 : AdventBase
                 break;
         }
 
-        VisitPart1<AllDirPicker>(map, scores, 0, 0, 0);
+        Span<byte> visited1d = stackalloc byte[MapWidth * MapHeight];
+        var visited = Span2D<byte>.DangerousCreate(ref visited1d[0], MapHeight, MapWidth, 0);
+        
+        PriorityQueue<(int x, int y), int> queue = new();
+        scores[0, 0] = 0;
+        queue.Enqueue((0, 0), 0);
 
-        return scores[^1, ^1];
+        void Check(Span2D<byte> map, Span2D<byte> visited, Span2D<int> scores, int score, int x2, int y2)
+        {
+            if (map.DangerousGetReferenceAt(y2, x2) != '#')
+            {
+                ref var newScore = ref scores[y2, x2];
+                var alt = score + 1;
+                if (alt < newScore)
+                {
+                    newScore = alt;
+                    ref var visit = ref visited[y2, x2];
+                    if (visit == 0)
+                    {
+                        queue.Enqueue((x2, y2), alt);
+                        visit = 1;
+                    }
+                    else
+                    {
+                        if (queue.Remove((x2, y2), out _, out _))
+                            queue.Enqueue((x2, y2), alt);
+                    }
+                }
+            }
+        }
+
+        while (queue.Count > 0)
+        {
+            var (x, y) = queue.Dequeue();
+            var score = scores[y, x];
+            if (y == scores.Height - 1 && x == scores.Width - 1)
+                return score;
+            
+            if (x + 1 < map.Width)
+                Check(map, visited, scores, score, x + 1, y);
+            if (x >= 1)
+                Check(map, visited, scores, score, x - 1, y);
+            if (y >= 1)
+                Check(map, visited, scores, score, x, y-1);
+            if (y + 1 < map.Height)
+                Check(map, visited, scores, score, x, y+1);
+            
+
+        }
+
+        return scores[^1, ^1]; // 264
     }
 
     protected override object Part2Impl()
