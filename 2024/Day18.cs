@@ -44,32 +44,6 @@ public class Day18 : AdventBase
     public override int Year => 2024;
     public override int Day => 18;
     
-    private bool VisitBestPathLocations<TDir>(Span2D<byte> map, Span2D<int> scores, 
-        int x, int y, int score, Span2D<byte> visited)
-        where TDir : IDirPicker
-    {
-        if (scores[y, x] != score)
-            return false;
-        
-        ref var visitedRef = ref visited.DangerousGetReferenceAt(y, x);
-        if (visitedRef > 0)
-        {
-            visitedRef = 1;
-            return false;
-        }
-        visitedRef = 1;
-
-        if (TDir.Right && x + 1 < map.Width && map[y, x + 1] != '#' && VisitBestPathLocations<ExceptLeftPicker>(map, scores, x + 1, y, score - 1, visited))
-            return true;
-        if (TDir.Left && x >= 1 && map[y, x - 1] != '#' && VisitBestPathLocations<ExceptRightPicker>(map, scores, x - 1, y, score - 1, visited))
-            return true;
-        if (TDir.Up && y >= 1 && map[y - 1, x] != '#' && VisitBestPathLocations<ExceptDownPicker>(map, scores, x , y - 1, score - 1, visited))
-            return true;
-
-        return TDir.Down && y + 1 < map.Height && map[y + 1, x] != '#' && VisitBestPathLocations<ExceptUpPicker>(map, scores, x , y + 1, score - 1, visited);
-    }
-    
-    
     private bool VisitPart2<TDir>(Span2D<byte> map, Span2D<int> scores, int x, int y, int score)
         where TDir : IDirPicker
     {
