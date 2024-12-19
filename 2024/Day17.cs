@@ -18,23 +18,23 @@ public class Day17 : AdventBase
         return string.Join(',', output); // 7,4,2,5,1,4,6,0,4
     }
 
-    private void ParseInput(out long a, out long b, out long c, out ReadOnlySpan<byte> program)
+    private void ParseInput(out ulong a, out ulong b, out ulong c, out ReadOnlySpan<byte> program)
     {
         var input = Input.TextU8;
         var lines = input.Split((byte)'\n');
         
         lines.MoveNext();
-        a = Util.FastParseInt<int>(input[lines.Current]["Register A: ".Length..]);
+        a = Util.FastParseInt<uint>(input[lines.Current]["Register A: ".Length..]);
         lines.MoveNext();
-        b = Util.FastParseInt<int>(input[lines.Current]["Register A: ".Length..]);
+        b = Util.FastParseInt<uint>(input[lines.Current]["Register A: ".Length..]);
         lines.MoveNext();
-        c = Util.FastParseInt<int>(input[lines.Current]["Register A: ".Length..]);
+        c = Util.FastParseInt<uint>(input[lines.Current]["Register A: ".Length..]);
         lines.MoveNext();
         lines.MoveNext();
         program = input[lines.Current]["Program: ".Length..];
     }
 
-    private static List<byte> RunProgram(ReadOnlySpan<byte> program, long a, long b, long c, List<byte> output, ReadOnlySpan<byte> targetOutput)
+    private static List<byte> RunProgram(ReadOnlySpan<byte> program, ulong a, ulong b, ulong c, List<byte> output, ReadOnlySpan<byte> targetOutput)
     {
         var sa = a;
         var pc = 0;
@@ -46,7 +46,7 @@ public class Day17 : AdventBase
             var operand = (byte)(program[pc*2 + 2] - '0');
             pc += 2;
 
-            long GetCombo(byte operand)
+            ulong GetCombo(byte operand)
             {
                 switch (operand)
                 {
@@ -73,13 +73,13 @@ public class Day17 : AdventBase
                     (So, an operand of 2 would divide A by 4 (2^2); an operand of 5 would divide A by 2^B.) 
                     The result of the division operation is truncated to an integer and then written to the A register.
                      */
-                    a = (long)(a / Math.Pow(2, GetCombo(operand)));
+                    a = (ulong)(a / Math.Pow(2, GetCombo(operand)));
                     break;
                 case 6: // bdv
-                    b = (long)(a / Math.Pow(2, GetCombo(operand)));
+                    b = (ulong)(a / Math.Pow(2, GetCombo(operand)));
                     break;
                 case 7: // cdv
-                    c = (long)(a / Math.Pow(2, GetCombo(operand)));
+                    c = (ulong)(a / Math.Pow(2, GetCombo(operand)));
                     break;
                 case 1: // bxl
                     // The bxl instruction (opcode 1) calculates the bitwise XOR of register B and the instruction's literal operand,
@@ -133,88 +133,32 @@ public class Day17 : AdventBase
         var buffer = new List<byte>(program.Length);
         var target = program.ToArray().Where(x => x != ',').Select(x => (byte)(x - '0')).ToArray();
 
-
-        for (int a = 0; a < 8; a++)
+        ulong a = 0;
+        for (var depth = 0; depth < target.Length; depth++)
         {
-            long b = a % 8;
-            b = b ^ 1;
-            var c = a / (long)(Math.Pow(2, b));
-            b = b ^ 5;
-            b = b ^ c;
-            var o = (b % 8);
-            Console.WriteLine((a, o));
+            var a2= GetNext(program, a, target.Length - 1 - depth, depth);
+
+            if (buffer.Count == target.Length)
+                return a2; // 164278764924605
+            
+            a = a2 << 3;
         }
 
-        return -1;
-        /*
-        long i = 1;
-        long increment = 1;
-        var prevCount = 0;
-        while (buffer.Count != target.Length)
+        ulong GetNext(ReadOnlySpan<byte> program, ulong sa, int i, int bi)
         {
-            for (; i < long.MaxValue; i += increment)
+            for (ulong a = 0; a <= 64; a++)
             {
                 buffer.Clear();
-                RunProgram(program, i, b, c, buffer, target);
-                var successCount = buffer.Count;
-                if (successCount > prevCount)
-                {        
-
-                    //increment *= 8;//(long)Math.Pow(8, buffer.Count);
-                    prevCount = buffer.Count;
-                   // i = (long)Math.Pow(8, buffer.Count+1);
-                    //increment = (long)Math.Pow(8, long.Max(1, buffer.Count - 1));
-                    Console.WriteLine($"MORE[{buffer.Count}]: {i}, inc: {increment}");
-                    break;
-                } else if (successCount < prevCount)
-                {
-                    //Console.WriteLine($"FAIL: {i}");
-                }
+                RunProgram(program, a+sa, bS, cS, buffer, default);
+                
+                if (target.AsSpan().EndsWith(CollectionsMarshal.AsSpan(buffer)))
+                    return a+sa;
             }
-            
-            
+
+            Console.WriteLine("FAIL");
+            throw new Exception();
         }
-        */
-        /*
-        for (i = 0; i < 8; i++)
-        {
-            RunProgram(program, i, b, c, buffer, target);
-            var successCount = buffer.Count;
-            if (successCount > 0)
-                break;
-        }
-        var increment = i;
-        
-        for (; i < 8*8; i += increment)
-        {
-            RunProgram(program, i, b, c, buffer, target);
-            var successCount = buffer.Count;
-            if (successCount > 1)
-                break;
-        }
-*/
-        
-        // > 71300000000
-        //   88645130703064
-        
-        /*
-        var max = (long)Math.Pow(8, 16);
-        for (long i = (long)Math.Pow(8, 15); i <= max; i += 1)
-        {
-            if (i % 100000000 == 0)
-                Console.WriteLine($"Running a = {i}");
-            RunProgram(program, i, b, c, buffer, target);
-            
-            var bufferSpan = CollectionsMarshal.AsSpan(buffer);
-            if (bufferSpan.SequenceEqual(target))
-                return i;
-            
-            var successCount = buffer.Count;
-            
-            buffer.Clear();
-        }
-        */
-        
+
         return -1;
     }
 }
