@@ -36,6 +36,17 @@ Early return thanks to sorting
 |------- |-----------:|---------:|---------:|--------:|----------:|
 | Part1  |   195.2 us |  1.78 us |  1.67 us |  2.9297 |  25.67 KB |
 | Part2  | 4,923.4 us | 24.34 us | 20.32 us | 85.9375 |    756 KB |
+
+P2 - memoise with length instead of array
+| Method | Mean       | Error    | StdDev   | Gen0   | Allocated |
+|------- |-----------:|---------:|---------:|-------:|----------:|
+| Part1  |   201.8 us |  2.43 us |  2.16 us | 2.9297 |  25.67 KB |
+| Part2  | 3,458.5 us | 30.87 us | 28.87 us |      - |  30.34 KB |
+
+| Method | Mean       | Error    | StdDev   | Gen0   | Allocated |
+|------- |-----------:|---------:|---------:|-------:|----------:|
+| Part1  |   198.4 us |  2.62 us |  2.45 us | 2.9297 |  25.67 KB |
+| Part2  | 3,339.4 us | 15.75 us | 14.74 us |      - |  26.84 KB |
  */
 public class Day19 : AdventBase
 {
@@ -96,15 +107,7 @@ public class Day19 : AdventBase
         var input = Input.TextU8;
         var lines = input.Split((byte)'\n');
         lines.MoveNext();
-
-        /*
-        var towels = new List<byte[]>();
-        foreach (var n in input[lines.Current].ParseSplits((byte)',', 0, (span, _) => span.TrimStart((byte)' ').ToArray()))
-        {
-            towels.Add(n);
-        }
-        towels.Sort((x1, x2) => x1.Length.CompareTo(x2.Length));
-        */
+        
         var towels = new List<byte[]>?['z'];
         foreach (var n in input[lines.Current].ParseSplits((byte)',', 0, (span, _) => span.TrimStart((byte)' ').ToArray()))
         {
@@ -125,16 +128,19 @@ public class Day19 : AdventBase
         singleTowelsPossible['g'] = towels['g']![0].Length is 1 ? (byte)1 : (byte)0;
 
         lines.MoveNext(); // skip empty line
-
-        var memo = new Dictionary<byte[], long>(new ArrayEqualityComparer());
-        var memoAlt = memo.GetAlternateLookup<ReadOnlySpan<byte>>();
+        
+        var memo = new long[64];
+        memo[0] = 1;
+        var clearableMemo = memo.AsSpan(2);
         
         long sum = 0;
         while (lines.MoveNext())
         {
             var line = input[lines.Current];
+            clearableMemo.Fill(long.MaxValue);
+
+            memo[1] = singleTowelsPossible.DangerousGetReferenceAt(line[0]);
             sum += CheckTowel(line);
-            memo.Clear();
         }
 
         return sum; // 606411968721181
@@ -142,19 +148,12 @@ public class Day19 : AdventBase
 
         long CheckTowel(ReadOnlySpan<byte> towel)
         {
-            switch (towel.Length)
-            {
-                case 0:
-                    return 1;
-                case 1:
-                    return singleTowelsPossible.DangerousGetReferenceAt(towel[0]);
-            }
-
-            if (memoAlt.TryGetValue(towel, out var cached))
-                return cached;
+            ref var m = ref memo[towel.Length];
+            if (m != long.MaxValue)
+                return m;
             
             long sum = 0;
-            foreach (var avail in towels[towel[^1]]!)
+            foreach (var avail in CollectionsMarshal.AsSpan(towels[towel[^1]]!))
             {
                 if (avail.Length > towel.Length)
                     break;
@@ -162,40 +161,8 @@ public class Day19 : AdventBase
                     sum += CheckTowel(towel[..^avail.Length]);
             }
 
-            memo[towel.ToArray()] = sum;
+            m = sum;
             return sum;
-        }
-    }
-
-    struct ArrayEqualityComparer : IEqualityComparer<byte[]>, IAlternateEqualityComparer<ReadOnlySpan<byte>, byte[]>
-    {
-        public bool Equals(byte[]? x, byte[]? y)
-        {
-            return x!.SequenceEqual(y!);
-        }
-
-        public int GetHashCode(byte[] obj)
-        {
-            var code = new HashCode();
-            code.AddBytes(obj);
-            return code.ToHashCode();
-        }
-
-        public bool Equals(ReadOnlySpan<byte> alternate, byte[] other)
-        {
-            return alternate.SequenceEqual(other);
-        }
-
-        public int GetHashCode(ReadOnlySpan<byte> alternate)
-        {
-            var code = new HashCode();
-            code.AddBytes(alternate);
-            return code.ToHashCode();
-        }
-
-        public byte[] Create(ReadOnlySpan<byte> alternate)
-        {
-            return alternate.ToArray();
         }
     }
 }
