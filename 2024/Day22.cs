@@ -1,7 +1,14 @@
 namespace AoC._2024;
 
 
-//12.7984 s/op - P2
+/*
+Initial - 12s for p2
+ 
+Optimised Bruteforce
+| Method | Mean    | Error    | StdDev   | Gen0      | Allocated |
+|------- |--------:|---------:|---------:|----------:|----------:|
+| Part2  | 3.457 s | 0.0198 s | 0.0185 s | 1000.0000 |  15.13 MB |
+ */
 
 public class Day22 : AdventBase
 {
@@ -10,9 +17,12 @@ public class Day22 : AdventBase
 
     private static ulong Next(ulong v)
     {
-        v = prune(mix(v, 64UL * v));
-        v = mix(v, v / 32);
-        v = prune(mix(v, 2048UL * v));
+        var prev = v;
+        v = prune(mix(v, v << 6));
+        v = mix(v, v >> 5);
+        v = prune(mix(v, v << 11));
+
+       // Console.WriteLine((prev, v, $"{prev:b32} - {v:b32}", v % 10));
         
         ulong mix(ulong secret, ulong n)
         {
@@ -70,7 +80,7 @@ public class Day22 : AdventBase
             //Console.WriteLine((initial, res));
         }
         
-        return sum;
+        return sum; // 13022553808
     }
 
     protected override object Part2Impl()
@@ -80,30 +90,56 @@ public class Day22 : AdventBase
         // Input.TextU8.ParseSplits((byte)'\n', 0, (span, _) => Util.FastParseInt<ulong>(span)).ToList();
 
         ulong bestSum = 0;
-        //ulong checkedAmt = 0;
+        ulong checkedAmt = 0;
+
+        int[] firstIndexesOfDouble = new int[input.Count];
+        int[] firstIndexesOfTriple = new int[input.Count];
 
         for (int a = -9; a <= 9; a++)
         {
             //Console.WriteLine(a);
             for (int b = int.Max(-9 - a, -9); b <= int.Min(9 - a, 9); b++)
-            for (int c = int.Max(-9 - a - b, -9); c <= int.Min(9 - b, 9); c++)
-            for (int d = int.Max(-9 - a - b - c, -9); d <= int.Min(9 -  c, 9); d++)
             {
-                var sum = Check((sbyte)a, (sbyte)b, (sbyte)c, (sbyte)d, input, bestSum);
-                if (sum > bestSum)
+                ReadOnlySpan<sbyte> search2 = [(sbyte)a, (sbyte)b];
+                for (int i = 0; i < firstIndexesOfDouble.Length; i++)
                 {
-                    Console.WriteLine($"FOUND NEW BEST SUM: {sum} vs {bestSum}: {(a, b, c, d)}");
+                    firstIndexesOfDouble[i] = input[i].Item1.AsSpan().IndexOf(search2);
                 }
-                bestSum = ulong.Max(bestSum, sum);
-                //checkedAmt++;
+
+                for (int c = int.Max(-9 - a - b, -9); c <= int.Min(9 - b, 9); c++)
+                {
+                    // saves 5s + 1.4s when used in Check
+                    ReadOnlySpan<sbyte> search = [(sbyte)a, (sbyte)b, (sbyte)c];
+                    for (int i = 0; i < firstIndexesOfTriple.Length; i++)
+                    {
+                        var si = firstIndexesOfDouble[i];
+                        if (si >= 0)
+                        {
+                            var idx = input[i].Item1.AsSpan(si).IndexOf(search);
+                            firstIndexesOfTriple[i] = idx < 0 ? idx : idx + si;
+                        }
+                    }
+                    
+                    for (int d = int.Max(-9 - a - b - c, -9); d <= int.Min(9 -  c, 9); d++)
+                    {
+                        var sum = Check((sbyte)a, (sbyte)b, (sbyte)c, (sbyte)d, input, bestSum, firstIndexesOfTriple);
+                        if (sum > bestSum)
+                        {
+                           // Console.WriteLine($"FOUND NEW BEST SUM: {sum} vs {bestSum}: {(a, b, c, d)}");
+                        }
+                        bestSum = ulong.Max(bestSum, sum);
+                        checkedAmt++;
+                    }
+                }
+
             }
+
         }
 
 
-       // Console.WriteLine(checkedAmt); // 59221
-        //Check(-2, 1, -1, 3, input);
+        Console.WriteLine(checkedAmt); // 59221
             
-        return bestSum; // 1555
+        return bestSum; // 1555 for (-1, 2, 0, 0)
     }
 
     private List<(sbyte[], int[])> ParseInputP2()
@@ -114,17 +150,22 @@ public class Day22 : AdventBase
             .ToList(default((sbyte[], int[])));
     }
 
-    private static ulong Check(sbyte a, sbyte b, sbyte c, sbyte d, List<(sbyte[], int[])> input, ulong curBest)
+    private static ulong Check(sbyte a, sbyte b, sbyte c, sbyte d, List<(sbyte[], int[])> input, ulong curBest, int[] startSearchIndexes)
     {
         ReadOnlySpan<sbyte> search = [a, b, c, d];
         ulong sum = 0UL;
         for (var i = 0; i < input.Count; i++)
         {
+            if (startSearchIndexes[i] < 0)
+            {
+                continue;
+            }
+            
             var (memo, costs) = input[i];
-            var index = memo.AsSpan().IndexOf(search);
+            var index = memo.AsSpan(startSearchIndexes[i]).IndexOf(search);
             if (index >= 0)
             {
-                sum += (ulong)costs[index + 3];
+                sum += (ulong)costs[index+ startSearchIndexes[i] + 3];
             }
 
             // saves like 1s, not needed
