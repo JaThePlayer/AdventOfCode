@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using CommunityToolkit.HighPerformance;
@@ -97,6 +98,16 @@ public static class Util
             buffer[i++] = T.CreateTruncating(10) * T.CreateTruncating(input[j] - zero) + T.CreateTruncating(input[j+1] - zero);
         }
         return buffer[..i];
+    }
+
+    public static (int x, int y) IndexOf2D<T>(this ReadOnlySpan2D<T> span, T value)
+        where T : IEquatable<T>
+    {
+        var len = checked((int)span.Length);
+        var span1d = MemoryMarshal.CreateReadOnlySpan(ref span.DangerousGetReference(), len);
+        var idx = span1d.IndexOf(value);
+        
+        return (idx % span.Width, idx / span.Width);
     }
 
     public static void LogAsJson<T>(this T a)
