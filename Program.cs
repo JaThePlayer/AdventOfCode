@@ -34,15 +34,16 @@ AdventBase[] days = [
     new Day01(),
     new Day22(),
     new Day23(),
+    new Day24(),
 ];
 
-var day = days[23 - 1];
+var day = days[^1];
 Console.WriteLine(day.Part1());
 Console.WriteLine(day.Part2());
 //return;
 //for (int i = 0; i < 1_000_000; i++) day.Part2();
 
-day.Benchmark();
+//day.Benchmark();
 return;
 
 var t = new Spectre.Console.Table()

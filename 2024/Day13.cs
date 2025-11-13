@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 namespace AoC._2024;
 
@@ -28,11 +29,21 @@ public class Day13 : AdventBase
     public override int Day => 13;
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ParseButtonLine(ReadOnlySpan<byte> line, out int x, out int y) {
-        (x, y) = (
-            Util.FastParse2DigitInt<int>(line.Slice("Button A: X+".Length)),
-            Util.FastParse2DigitInt<int>(line.Slice("Button A: X+26, Y+".Length))
-        );
+    static bool ParsePrizeLine(ref ReadOnlySpan<byte> input, out long px, out long py)
+    {
+        var splitIdx = input.IndexOf((byte)',');
+        px = Util.FastParseInt<long>(input[..splitIdx]);
+        input = input.Slice(splitIdx + 4);
+        splitIdx = input.IndexOf((byte)'\n');
+        if (splitIdx == -1)
+        {
+            py = Util.FastParseInt<long>(input);
+            return true;
+        }
+
+        py = Util.FastParseInt<long>(input[..splitIdx]);
+        input = input.Slice(splitIdx + 2);
+        return false;
     }
 
     static long FindSolution(int ax, int ay, int bx, int by, long px, long py)
@@ -71,28 +82,18 @@ public class Day13 : AdventBase
         
         while (true)
         {
-            ParseButtonLine(input, out var ax, out var ay);
-            input = input.Slice("Button A: X+26, Y+57\n".Length);
-            ParseButtonLine(input, out var bx, out var by);
-            input = input.Slice("Button A: X+26, Y+57\nPrize: X=".Length);
-
-            var splitIdx = input.IndexOf((byte)',');
-            var px = Util.FastParseInt<long>(input[..splitIdx]) + TOffset.Value;
-            input = input.Slice(splitIdx + 4);
-            splitIdx = input.IndexOf((byte)'\n');
-            long py;
-            if (splitIdx == -1)
-            {
-                py = Util.FastParseInt<long>(input) + TOffset.Value;
-            
-                sum += FindSolution(ax, ay, bx, by, px, py);
-                return sum;
-            }
-            
-            py = Util.FastParseInt<long>(input[..splitIdx]) + TOffset.Value;
+            var ax = Util.FastParse2DigitInt<int>(input, "Button A: X+".Length);
+            var ay = Util.FastParse2DigitInt<int>(input, "Button A: X+26, Y+".Length);
+            var bx = Util.FastParse2DigitInt<int>(input, "Button A: X+26, Y+57\nButton A: X+".Length);
+            var by = Util.FastParse2DigitInt<int>(input, "Button A: X+26, Y+57\nButton A: X+26, Y+".Length);
+            input = input.Slice("Button A: X+26, Y+57\nButton A: X+26, Y+57\nPrize: X=".Length);
+            var shouldExit = ParsePrizeLine(ref input, out var px, out var py);
+            px += TOffset.Value;
+            py += TOffset.Value;
             sum += FindSolution(ax, ay, bx, by, px, py);
-            
-            input = input.Slice(splitIdx + 2);
+
+            if (shouldExit)
+                return sum;
         }
     }
     

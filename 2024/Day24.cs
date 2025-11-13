@@ -105,7 +105,7 @@ public class Day24 : AdventBase
             }
         }
         
-        return $"{result}";
+        return result;
     }
 
     protected override object Part2Impl()

@@ -59,9 +59,7 @@ public class Day15 : AdventBase
         }
 
         // gps
-
         ulong sum = 0;
-
         for (int y = 1; y < map.Height - 1; y++)
         {
             var row = map.GetRowSpan(y);
@@ -76,7 +74,7 @@ public class Day15 : AdventBase
 
         return sum; // 1437174
         
-        bool TryMove(Span2D<byte> map, ref int x, ref int y, int ox, int oy)
+        static bool TryMove(Span2D<byte> map, ref int x, ref int y, int ox, int oy)
         {
             var nx = x + ox;
             var ny = y + oy;
@@ -118,25 +116,18 @@ public class Day15 : AdventBase
         var map1d = new byte[mapOrig.Height * width];
         var map = Span2D<byte>.DangerousCreate(ref map1d[0], mapOrig.Height, width, 0);
         
-        for (int y = 0; y < mapOrig.Height; y++)
+        for (var y = 0; y < mapOrig.Height; y++)
         {
             var origRow = mapOrig.GetRowSpan(y);
             var newRow = map.GetRowSpan(y);
-            for (int x = 0; x < mapOrig.Width - 1; x++)
+            for (var x = 0; x < mapOrig.Width - 1; x++)
             {
-                ref short nextTwo = ref Unsafe.As<byte, short>(ref newRow.DangerousGetReferenceAt(x * 2));
-                switch (origRow[x])
+                Unsafe.WriteUnaligned<short>(ref newRow.DangerousGetReferenceAt(x * 2), origRow[x] switch
                 {
-                    case (byte)'#':
-                        nextTwo = 0x2323;
-                        break;
-                    case (byte)'O':
-                        nextTwo = 0x5d5b;
-                        break;
-                    default:
-                        nextTwo = 0x2e2e;
-                        break;
-                }
+                    (byte)'#' => 0x2323,
+                    (byte)'O' => 0x5d5b,
+                    _ => 0x2e2e,
+                });
             }
         }
 
@@ -162,12 +153,14 @@ public class Day15 : AdventBase
                 case (byte)'^' or (byte)'v':
                     if (!TryMoveVertical(map, ref gx, ref gy, inputs[i] == '^' ? -1 : 1, history) && history.Count > 0)
                     {
+                        // Move was invalid, but we might've mutated the map in the process.
+                        // Make sure to revert all changes.
                         var span = CollectionsMarshal.AsSpan(history);
                         for (var iq = span.Length - 1; iq >= 0; iq--)
                         {
                             var (yB, xB, yD, xD) = span[iq];
-                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yB, xB)) = 0x2e2e; // ..
-                            Unsafe.As<byte, short>(ref map.DangerousGetReferenceAt(yD, xD)) = 0x5d5b; // []
+                            Unsafe.WriteUnaligned<short>(ref map.DangerousGetReferenceAt(yB, xB), 0x2e2e); // ..
+                            Unsafe.WriteUnaligned<short>(ref map.DangerousGetReferenceAt(yD, xD), 0x5d5b); // []
                         }
                     }
                     history.Clear();

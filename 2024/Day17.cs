@@ -3,6 +3,17 @@ using System.Text;
 
 namespace AoC._2024;
 
+/*
+Initial
+Part1 - 678 ns
+Part2 - 92  us
+
+Better 2^x algo
+| Method | Mean        | Error     | StdDev    | Gen0   | Allocated |
+|------- |------------:|----------:|----------:|-------:|----------:|
+| Part1  |    375.4 ns |   2.93 ns |   2.60 ns | 0.0277 |     232 B |
+| Part2  | 33,473.3 ns | 283.62 ns | 265.30 ns |      - |     312 B |
+ */
 public class Day17 : AdventBase
 {
     public override int Year => 2024;
@@ -13,7 +24,7 @@ public class Day17 : AdventBase
         ParseInput(out var a, out var b, out var c, out var program);
         
         List<byte> output = new();
-        output = RunProgram(program, a, b, c, output, default);
+        output = RunProgram(program, a, b, c, output);
 
         return string.Join(',', output); // 7,4,2,5,1,4,6,0,4
     }
@@ -34,7 +45,7 @@ public class Day17 : AdventBase
         program = input[lines.Current]["Program: ".Length..];
     }
 
-    private static List<byte> RunProgram(ReadOnlySpan<byte> program, ulong a, ulong b, ulong c, List<byte> output, ReadOnlySpan<byte> targetOutput)
+    private static List<byte> RunProgram(ReadOnlySpan<byte> program, ulong a, ulong b, ulong c, List<byte> output)
     {
         var sa = a;
         var pc = 0;
@@ -67,24 +78,33 @@ public class Day17 : AdventBase
             {
                 case 0: // adv
                     /*
-                    The adv instruction (opcode 0) performs division. 
-                    The numerator is the value in the A register. 
-                    The denominator is found by raising 2 to the power of the instruction's combo operand. 
-                    (So, an operand of 2 would divide A by 4 (2^2); an operand of 5 would divide A by 2^B.) 
+                    The adv instruction (opcode 0) performs division.
+                    The numerator is the value in the A register.
+                    The denominator is found by raising 2 to the power of the instruction's combo operand.
+                    (So, an operand of 2 would divide A by 4 (2^2); an operand of 5 would divide A by 2^B.)
                     The result of the division operation is truncated to an integer and then written to the A register.
                      */
-                    a = (ulong)(a / Math.Pow(2, GetCombo(operand)));
+                {
+                    var pow = (int)(GetCombo(operand) - 1);
+                    a = pow == -1 ? 1 : a / (2UL << (int)(GetCombo(operand) - 1));
                     break;
+                }
                 case 6: // bdv
-                    b = (ulong)(a / Math.Pow(2, GetCombo(operand)));
+                {
+                    var pow = (int)(GetCombo(operand) - 1);
+                    b = pow == -1 ? 1 : a / (2UL << (int)(GetCombo(operand) - 1));
                     break;
+                }
                 case 7: // cdv
-                    c = (ulong)(a / Math.Pow(2, GetCombo(operand)));
+                {
+                    var pow = (int)(GetCombo(operand) - 1);
+                    c = pow == -1 ? 1 : a / (2UL << (int)(GetCombo(operand) - 1));
                     break;
+                }
                 case 1: // bxl
                     // The bxl instruction (opcode 1) calculates the bitwise XOR of register B and the instruction's literal operand,
                     // then stores the result in register B.
-                    b = b ^ operand;
+                    b ^= operand;
                     break;
                 case 2: // bst
                     // The bst instruction (opcode 2) calculates the value of its combo operand modulo 8
@@ -96,33 +116,23 @@ public class Day17 : AdventBase
                     // The jnz instruction (opcode 3) does nothing if the A register is 0.
                     // However, if the A register is not zero, it jumps by setting the instruction pointer to the value of its literal operand;
                     // if this instruction jumps, the instruction pointer is not increased by 2 after this instruction.
-                    if (a == 0)
-                        break;
-                    pc = operand;
+                    if (a != 0)
+                        pc = operand;
                     break;
                 case 4: // bxc
                     // The bxc instruction (opcode 4) calculates the bitwise XOR of register B and register C,
                     // then stores the result in register B.
                     // (For legacy reasons, this instruction reads an operand but ignores it.)
-                    b = b ^ c;
+                    b ^= c;
                     break;
                 case 5: // out
                     // The out instruction (opcode 5) calculates the value of its combo operand modulo 8,
                     // then outputs that value. (If a program outputs multiple values, they are separated by commas.)
-                    byte toOutput = (byte)(GetCombo(operand) % 8);
-                    if (targetOutput != default)
-                    {
-                        if (targetOutput[output.Count] != toOutput)
-                            return output;
-                       // Console.WriteLine($"Success: {output.Count}: {sa}");
-                    }
-                    
-                    output.Add(toOutput);
+                    output.Add((byte)(GetCombo(operand) % 8));
                     break;
             }
         }
 
-        //Console.WriteLine($"a={a};b={b};c={c}");
         return output;
     }
 
@@ -149,14 +159,15 @@ public class Day17 : AdventBase
             for (ulong a = 0; a <= 64; a++)
             {
                 buffer.Clear();
-                RunProgram(program, a+sa, bS, cS, buffer, default);
+                RunProgram(program, a+sa, bS, cS, buffer);
                 
                 if (target.AsSpan().EndsWith(CollectionsMarshal.AsSpan(buffer)))
                     return a+sa;
             }
 
-            Console.WriteLine("FAIL");
-            throw new Exception();
+            //Console.WriteLine("FAIL");
+            //throw new Exception();
+            return long.MaxValue;
         }
 
         return -1;
