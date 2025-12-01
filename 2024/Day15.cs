@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance;
+using MemoryExtensions = System.MemoryExtensions;
 
 namespace AoC._2024;
 
@@ -25,10 +26,10 @@ public class Day15 : AdventBase
     protected override object Part1Impl()
     {
         var input = Input.TextU8;
-        var splitIdx = input.IndexOf([(byte)'\n', (byte)'\n']);
+        var splitIdx = input.IndexOf("\n\n"u8);
 
         var map1d = input[..splitIdx].ToArray();
-        var width = map1d.AsSpan().IndexOf((byte)'\n') + 1;
+        var width = MemoryExtensions.IndexOf(map1d.AsSpan(), (byte)'\n') + 1;
 
         var map = Span2D<byte>.DangerousCreate(ref map1d[0], map1d.Length / width + 1, width, 0);
 
@@ -107,7 +108,7 @@ public class Day15 : AdventBase
     protected override object Part2Impl()
     {
         var input = Input.TextU8;
-        var splitIdx = input.IndexOf([(byte)'\n', (byte)'\n']);
+        var splitIdx = input.IndexOf("\n\n"u8);
         
         var origWidth = input.IndexOf((byte)'\n') + 1;
         var mapOrig = ReadOnlySpan2D<byte>.DangerousCreate(input[0], splitIdx / origWidth + 1, origWidth, 0);
