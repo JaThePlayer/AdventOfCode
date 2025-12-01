@@ -5,6 +5,12 @@ namespace AoC._2025;
 |------- |---------:|---------:|---------:|----------:|
 | Part1  | 26.83 us | 0.167 us | 0.156 us |      24 B |
 | Part2  | 27.34 us | 0.160 us | 0.150 us |      24 B |
+
+Utf8:
+| Method | Mean     | Error    | StdDev   | Allocated |
+|------- |---------:|---------:|---------:|----------:|
+| Part1  | 20.82 us | 0.115 us | 0.102 us |      24 B |
+| Part2  | 20.65 us | 0.065 us | 0.054 us |      24 B |
  */
 public class Day01 : AdventBase
 {
@@ -15,8 +21,8 @@ public class Day01 : AdventBase
     {
         var res = 0;
         var curr = 50;
-        var input = Input.Text.AsSpan();
-        foreach (var lineRange in input.Split('\n'))
+        var input = Input.TextU8;
+        foreach (var lineRange in input.Split((byte)'\n'))
         {
             var line = input[lineRange];
             var amt = Util.FastParseInt<int>(line[1..]);
@@ -34,8 +40,8 @@ public class Day01 : AdventBase
     {
         var res = 0;
         var curr = 50;
-        var input = Input.Text.AsSpan();
-        foreach (var lineRange in input.Split('\n'))
+        var input = Input.TextU8;
+        foreach (var lineRange in input.Split((byte)'\n'))
         {
             var line = input[lineRange];
             var amt = Util.FastParseInt<int>(line[1..]);
