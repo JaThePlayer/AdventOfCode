@@ -10,7 +10,7 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using Spectre.Console;
 
-AdventBase[] days = [
+AdventBase[] days2024 = [
     new Day01(),
     new Day02(),
     new Day03NoRegex(),
@@ -37,13 +37,19 @@ AdventBase[] days = [
     new Day24(),
 ];
 
+AdventBase[] days =
+[
+    new AoC._2025.Day01()
+];
+
 var day = days[^1];
-Console.WriteLine(day.Part1());
-Console.WriteLine(day.Part2());
+day.RunSafe();
+day.Benchmark();
+//Console.WriteLine(day.Part1());
+//Console.WriteLine(day.Part2());
 //return;
 //for (int i = 0; i < 1_000_000; i++) day.Part2();
 
-//day.Benchmark();
 return;
 
 var t = new Spectre.Console.Table()

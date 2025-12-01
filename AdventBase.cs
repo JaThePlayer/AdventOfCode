@@ -59,6 +59,27 @@ public abstract class AdventBase
             return _projectRoot ?? Directory.GetCurrentDirectory() ?? throw new DirectoryNotFoundException("Can't find project root.");
         }
     }
+
+    public void RunSafe()
+    {
+        try
+        {
+            Console.WriteLine($"Part 1: {Part1()}");
+        }
+        catch (NotImplementedException)
+        {
+            Console.WriteLine("Part 1: Not implemented");
+        }
+        
+        try
+        {
+            Console.WriteLine($"Part 2: {Part2()}");
+        }
+        catch (NotImplementedException)
+        {
+            Console.WriteLine("Part 2: Not implemented");
+        }
+    }
 }
 
 public sealed class AdventFile(string path)
