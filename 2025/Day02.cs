@@ -38,6 +38,12 @@ Part 1: microopts
 | Method | Mean     | Error     | StdDev    | Allocated |
 |------- |---------:|----------:|----------:|----------:|
 | Part1  | 3.810 us | 0.0133 us | 0.0125 us |      24 B |
+
+Part 2: better algo, no more strings
+| Method | Mean      | Error     | StdDev    | Gen0   | Allocated |
+|------- |----------:|----------:|----------:|-------:|----------:|
+| Part1  |  3.823 us | 0.0382 us | 0.0357 us |      - |      24 B |
+| Part2  | 12.862 us | 0.0441 us | 0.0391 us | 0.8698 |    7336 B |
  */
 public class Day02 : AdventBase
 {
@@ -88,37 +94,53 @@ public class Day02 : AdventBase
     {
         var input = Input.TextU8;
 
-        long res = 0;
+        ulong res = 0;
+        HashSet<ulong> seen = [];
         
         foreach (var rangeRange in input.Split((byte)','))
         {
+            seen.Clear();
             var range = input[rangeRange];
-            _ = range.ParseTwoSplits((byte)'-', Util.FastParseInt<long, byte>, out var firstId, out var lastId);
+            _ = range.ParseTwoSplits((byte)'-', Util.FastParseInt<ulong, byte>, out var firstId, out var lastId);
 
-            for (var id = firstId; id <= lastId; id++)
+            for (var chunkLen = 1; chunkLen < lastId.CountDigits() / 2 + 1; chunkLen++)
             {
-                var str = id.ToString();
-                
-                for (var chunkLen = 1; chunkLen < str.Length / 2 + 1; chunkLen++)
+                var id = ulong.Max(firstId, 10);
+                while (true)
                 {
-                    using var chunks = str.Chunk(chunkLen).GetEnumerator();
-                    _ = chunks.MoveNext();
-                    var first = chunks.Current;
-                    var allChunksSame = true;
-                    while (chunks.MoveNext())
+                    var digits = id.CountDigits();
+                    
+                    if (digits % chunkLen != 0)
                     {
-                        if (!chunks.Current.SequenceEqual(first))
-                        {
-                            allChunksSame = false;
+                        // Skip ahead to next power of ten
+                        id = id.NextPowerOf10();
+                        if (id > lastId)
                             break;
+                        continue;
+                    }
+                    var chunkAmt = digits / chunkLen;
+                    
+                    var pow = MathExt.PowerOfTen(chunkLen == 1 ? digits - 1 : digits - chunkLen);
+                    var left = id / pow;
+                    var target = left;
+                    while (chunkAmt > 1)
+                    {
+                        target = target.Concat(left);
+                        chunkAmt--;
+                    }
+                    
+                    if (firstId <= target && target <= lastId)
+                    {
+                        if (seen.Add(target))
+                        {
+                            res += target;
                         }
                     }
-
-                    if (allChunksSame)
-                    {
-                        res += id;
-                        break;
-                    }
+                    else if (target > lastId)
+                        break; // the current invalid id was already too big, and subsequent ones will be even larger
+                    
+                    // We can't find another bad id until 'left' changes
+                    id += pow;
                 }
             }
         }
