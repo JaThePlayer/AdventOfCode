@@ -103,7 +103,8 @@ public class Day02 : AdventBase
             var range = input[rangeRange];
             _ = range.ParseTwoSplits((byte)'-', Util.FastParseInt<ulong, byte>, out var firstId, out var lastId);
 
-            for (var chunkLen = 1; chunkLen < lastId.CountDigits() / 2 + 1; chunkLen++)
+            var maxDigits = lastId.CountDigits() / 2 + 1;
+            for (var chunkLen = 1; chunkLen < maxDigits; chunkLen++)
             {
                 var id = ulong.Max(firstId, 10);
                 while (true)
@@ -119,22 +120,20 @@ public class Day02 : AdventBase
                         continue;
                     }
                     var chunkAmt = digits / chunkLen;
-                    
-                    var pow = MathExt.PowerOfTen(chunkLen == 1 ? digits - 1 : digits - chunkLen);
+                    var pow = MathExt.PowerOfTen(digits - chunkLen);
                     var left = id / pow;
+                    var leftNextPowOf10 = left.NextPowerOf10();
                     var target = left;
                     while (chunkAmt > 1)
                     {
-                        target = target.Concat(left);
+                        target = target * leftNextPowOf10 + left; // target.Concat(left);
                         chunkAmt--;
                     }
                     
                     if (firstId <= target && target <= lastId)
                     {
                         if (seen.Add(target))
-                        {
                             res += target;
-                        }
                     }
                     else if (target > lastId)
                         break; // the current invalid id was already too big, and subsequent ones will be even larger
