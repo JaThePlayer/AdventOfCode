@@ -28,6 +28,11 @@ Part 1: Skip ahead on successful find
 | Method | Mean     | Error   | StdDev  | Allocated |
 |------- |---------:|--------:|--------:|----------:|
 | Part1  | 838.4 us | 4.16 us | 3.89 us |      24 B |
+
+Part 1: Calculate invalid ids and check whether they're in range.
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 9.243 us | 0.0502 us | 0.0392 us |      24 B |
  */
 public class Day02 : AdventBase
 {
@@ -45,26 +50,29 @@ public class Day02 : AdventBase
             var range = input[rangeRange];
             _ = range.ParseTwoSplits((byte)'-', Util.FastParseInt<ulong, byte>, out var firstId, out var lastId);
 
-            for (var id = firstId; id <= lastId; id++)
+            var id = firstId;
+            while (true)
             {
                 var digits = id.CountDigits();
                 if (digits % 2 == 1)
                 {
                     // Skip ahead to next power of ten
                     id = id.NextPowerOf10();
+                    if (id > lastId)
+                        break;
                     continue;
                 }
                 var pow = MathExt.PowerOfTen(digits / 2);
                 var left = id / pow;
-                var right = id % pow;
+                var invalidIdForThisLeftValue = left.Concat(left);
 
-                if (left == right)
-                {
-                    res += id;
-                    // We can't find another bad id until 'left' changes
-                    var n = left.NextPowerOf10();
-                    id += n;
-                }
+                if (firstId <= invalidIdForThisLeftValue && invalidIdForThisLeftValue <= lastId)
+                    res += invalidIdForThisLeftValue;
+                else if (invalidIdForThisLeftValue > lastId)
+                    break; // the current invalid id was already too big, and subsequent ones will be even larger
+                
+                // We can't find another bad id until 'left' changes
+                id += left.NextPowerOf10();
             }
         }
 
