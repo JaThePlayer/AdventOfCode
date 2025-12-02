@@ -10,8 +10,24 @@ namespace AoC._2025;
 Utf8
 | Method | Mean      | Error    | StdDev   | Gen0        | Allocated  |
 |------- |----------:|---------:|---------:|------------:|-----------:|
-| Part1  |  23.90 ms | 0.452 ms | 0.484 ms |  11406.2500 |   91.16 MB |
-| Part2  | 484.95 ms | 9.301 ms | 7.767 ms | 188000.0000 | 1500.45 MB |
+| Part1  |  23.09 ms | 0.452 ms | 0.791 ms |  11406.2500 |   91.16 MB |
+| Part2  | 464.75 ms | 8.777 ms | 9.014 ms | 188000.0000 | 1500.45 MB |
+
+
+Part 1: Do everything on numbers and not strings
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 6.005 ms | 0.0183 ms | 0.0171 ms |         - |
+
+Part 1: Skip ahead on odd number of digits
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 5.352 ms | 0.0041 ms | 0.0036 ms |         - |
+
+Part 1: Skip ahead on successful find
+| Method | Mean     | Error   | StdDev  | Allocated |
+|------- |---------:|--------:|--------:|----------:|
+| Part1  | 838.4 us | 4.16 us | 3.89 us |      24 B |
  */
 public class Day02 : AdventBase
 {
@@ -22,40 +38,33 @@ public class Day02 : AdventBase
     protected override object Part1Impl()
     {
         var input = Input.TextU8;
-
-        long res = 0;
+        ulong res = 0;
         
         foreach (var rangeRange in input.Split((byte)','))
         {
             var range = input[rangeRange];
-            _ = range.ParseTwoSplits((byte)'-', Util.FastParseInt<long, byte>, out var firstId, out var lastId);
+            _ = range.ParseTwoSplits((byte)'-', Util.FastParseInt<ulong, byte>, out var firstId, out var lastId);
 
             for (var id = firstId; id <= lastId; id++)
             {
-                var str = id.ToString().AsSpan();
-                if (str.Length % 2 == 1)
-                    continue;
-                
-                var left = str[..(str.Length/2)];
-                var right = str[(str.Length/2)..];
-
-                if (left.SequenceEqual(right))
-                    res += id;
-
-                /*
-                var invalid = id switch
+                var digits = id.CountDigits();
+                if (digits % 2 == 1)
                 {
-                    // 1 digit
-                    < 10 => false,
-                    // 2 digit
-                    < 100 => str[0] == str[1],
-                    // 3 digit
-                    < 1000 => false,
-                    // 4 digit
-                    < 10000 => str[0] == str[3] && str[1] == str[2],
-                    _ => throw new ArgumentOutOfRangeException(nameof(id), id, null)
-                };
-                */
+                    // Skip ahead to next power of ten
+                    id = id.NextPowerOf10();
+                    continue;
+                }
+                var pow = MathExt.PowerOfTen(digits / 2);
+                var left = id / pow;
+                var right = id % pow;
+
+                if (left == right)
+                {
+                    res += id;
+                    // We can't find another bad id until 'left' changes
+                    var n = left.NextPowerOf10();
+                    id += n;
+                }
             }
         }
 
