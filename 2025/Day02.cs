@@ -33,6 +33,11 @@ Part 1: Calculate invalid ids and check whether they're in range.
 | Method | Mean     | Error     | StdDev    | Allocated |
 |------- |---------:|----------:|----------:|----------:|
 | Part1  | 9.243 us | 0.0502 us | 0.0392 us |      24 B |
+
+Part 1: microopts
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 3.810 us | 0.0133 us | 0.0125 us |      24 B |
  */
 public class Day02 : AdventBase
 {
@@ -64,7 +69,7 @@ public class Day02 : AdventBase
                 }
                 var pow = MathExt.PowerOfTen(digits / 2);
                 var left = id / pow;
-                var invalidIdForThisLeftValue = left.Concat(left);
+                var invalidIdForThisLeftValue = left * pow + left;
 
                 if (firstId <= invalidIdForThisLeftValue && invalidIdForThisLeftValue <= lastId)
                     res += invalidIdForThisLeftValue;
@@ -72,7 +77,7 @@ public class Day02 : AdventBase
                     break; // the current invalid id was already too big, and subsequent ones will be even larger
                 
                 // We can't find another bad id until 'left' changes
-                id += left.NextPowerOf10();
+                id += pow;
             }
         }
 
