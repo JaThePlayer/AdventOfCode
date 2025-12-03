@@ -6,6 +6,12 @@ Initial
 |------- |---------:|---------:|---------:|----------:|
 | Part1  | 13.94 us | 0.193 us | 0.180 us |      24 B |
 | Part2  | 34.06 us | 0.564 us | 0.500 us |      24 B |
+
+P2 Stop searching after finding a 9. (regression in P1)
+| Method | Mean     | Error    | StdDev   | Allocated |
+|------- |---------:|---------:|---------:|----------:|
+| Part1  | 14.39 us | 0.056 us | 0.049 us |      24 B |
+| Part2  | 28.79 us | 0.492 us | 0.460 us |      24 B |
  */
 public class Day03 : AdventBase
 {
@@ -27,6 +33,10 @@ public class Day03 : AdventBase
                 {
                     tensDigit = bank[i];
                     tensDigitIdx = i;
+                    // can't find anything better
+                    // - found via benchmark to be slower...
+                    //if (tensDigit == '9')
+                    //    break;
                 }
             }
             
@@ -34,9 +44,7 @@ public class Day03 : AdventBase
             for (int i = tensDigitIdx + 2; i < bank.Length; i++)
             {
                 if (bank[i] > bat2)
-                {
                     bat2 = bank[i];
-                }
             }
 
             var res = (tensDigit - '0') * 10 + (bat2 - '0');
@@ -55,15 +63,19 @@ public class Day03 : AdventBase
         {
             var bank = input[bankRange];
             var startIdx = 0;
+            
             for (var charI = 0; charI < chars.Length; charI++)
             {
                 var nextDigit = bank[startIdx];
-                for (int i = startIdx + 1; i < bank.Length - (chars.Length - charI - 1); i++)
+                for (var i = startIdx + 1; i < bank.Length - (chars.Length - charI - 1); i++)
                 {
                     if (bank[i] > nextDigit)
                     {
                         nextDigit = bank[i];
                         startIdx = i;
+                        // can't find anything better
+                        if (nextDigit == '9')
+                            break;
                     }
                 }
 
