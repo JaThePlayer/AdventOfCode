@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace AoC._2025;
 
 /*
@@ -12,6 +14,22 @@ P2 Stop searching after finding a 9. (regression in P1)
 |------- |---------:|---------:|---------:|----------:|
 | Part1  | 14.39 us | 0.056 us | 0.049 us |      24 B |
 | Part2  | 28.79 us | 0.492 us | 0.460 us |      24 B |
+
+P1 - TensorPrimitives.Max to find 2nd digit.
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 9.776 us | 0.0399 us | 0.0333 us |      24 B |
+
+P1 - TensorPrimitives.IndexOfMax for 1st digit
+| Method | Mean     | Error     | StdDev    | Allocated |
+|------- |---------:|----------:|----------:|----------:|
+| Part1  | 4.317 us | 0.0461 us | 0.0432 us |      24 B |
+
+P2 - TensorPrimitives.IndexOfMax
+| Method | Mean      | Error     | StdDev    | Allocated |
+|------- |----------:|----------:|----------:|----------:|
+| Part1  |  4.203 us | 0.0055 us | 0.0046 us |      24 B |
+| Part2  | 22.416 us | 0.1922 us | 0.1797 us |      24 B |
  */
 public class Day03 : AdventBase
 {
@@ -25,27 +43,9 @@ public class Day03 : AdventBase
         foreach (var bankRange in input.Split((byte)'\n'))
         {
             var bank = input[bankRange];
-            var tensDigitIdx = 0;
-            var tensDigit = bank[0];
-            for (int i = 1; i < bank.Length - 1; i++)
-            {
-                if (bank[i] > tensDigit)
-                {
-                    tensDigit = bank[i];
-                    tensDigitIdx = i;
-                    // can't find anything better
-                    // - found via benchmark to be slower...
-                    //if (tensDigit == '9')
-                    //    break;
-                }
-            }
-            
-            var bat2 = bank[tensDigitIdx + 1];
-            for (int i = tensDigitIdx + 2; i < bank.Length; i++)
-            {
-                if (bank[i] > bat2)
-                    bat2 = bank[i];
-            }
+            var tensDigitIdx = TensorPrimitives.IndexOfMax(bank[..^1]);
+            var tensDigit = bank[tensDigitIdx];
+            var bat2 = TensorPrimitives.Max(bank[(tensDigitIdx + 1)..]);
 
             var res = (tensDigit - '0') * 10 + (bat2 - '0');
             sum += res;
@@ -66,20 +66,8 @@ public class Day03 : AdventBase
             
             for (var charI = 0; charI < chars.Length; charI++)
             {
-                var nextDigit = bank[startIdx];
-                for (var i = startIdx + 1; i < bank.Length - (chars.Length - charI - 1); i++)
-                {
-                    if (bank[i] > nextDigit)
-                    {
-                        nextDigit = bank[i];
-                        startIdx = i;
-                        // can't find anything better
-                        if (nextDigit == '9')
-                            break;
-                    }
-                }
-
-                chars[charI] = nextDigit;
+                startIdx += TensorPrimitives.IndexOfMax(bank[startIdx..^(chars.Length - charI - 1)]);
+                chars[charI] = bank[startIdx];
                 startIdx++;
             }
 
