@@ -50,13 +50,18 @@ TwoDimUtils
 |------- |----------:|---------:|---------:|-------:|-------:|----------:|
 | Part1  |  70.61 us | 1.194 us | 1.226 us |      - |      - |      24 B |
 | Part2  | 211.86 us | 1.097 us | 1.026 us | 6.1035 | 0.4883 |   51976 B |
+
+P2 microopts
+| Method | Mean     | Error   | StdDev  | Gen0   | Gen1   | Allocated |
+|------- |---------:|--------:|--------:|-------:|-------:|----------:|
+| Part2  | 208.8 us | 0.89 us | 0.74 us | 6.1035 | 0.7324 |  50.76 KB |
 */
 public class Day04 : AdventBase
 {
     public override int Year => 2025;
     public override int Day => 4;
 
-    private ref struct NeighborCountVisitor : ITileFilter<byte>
+    private ref struct TileIsPaper : ITileFilter<byte>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Matches(byte tile) => tile == '@';
@@ -71,11 +76,10 @@ public class Day04 : AdventBase
         {
             for (var x = 0; x < map.Width - 1; x++)
             {
-                var cell = map[y, x];
-                if (cell != '@')
+                if (map[y, x] != '@')
                     continue;
 
-                if (TwoDimUtils.CountNeighborsMatching(ref map, default(NeighborCountVisitor), y, x) < 4)
+                if (TwoDimUtils.CountNeighborsMatching(ref map, default(TileIsPaper), y, x) < 4)
                     sum++;
             }
         }
@@ -83,7 +87,7 @@ public class Day04 : AdventBase
         return sum; // 1543
     }
 
-    private readonly ref struct Part2Visitor(Queue<(int y, int x)> toVisit) : ITileVisitor<byte>
+    private readonly struct Part2Visitor(Queue<(int y, int x)> toVisit) : ITileVisitor<byte>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Visit(ref byte count, int y, int x)
@@ -96,8 +100,7 @@ public class Day04 : AdventBase
     protected override object Part2Impl()
     {
         var map = Input.Create2DMap();
-        var neighborCounts = Span2D<byte>.DangerousCreate(ref (new byte[map.Height * map.Width])[0], map.Height, map.Width, 0);
-        neighborCounts.Fill(255);
+        var neighborCounts = Span2D<byte>.DangerousCreate(ref (new byte[map.Length])[0], map.Height, map.Width, 0);
         var sum = 0;
         Queue<(int y, int x)> toVisit = new();
         
@@ -105,15 +108,14 @@ public class Day04 : AdventBase
         {
             for (var x = 0; x < map.Width - 1; x++)
             {
-                var cell = map[y, x];
-                if (cell != '@')
+                if (map[y, x] != '@')
                     continue;
                 
-                var neigh = TwoDimUtils.CountNeighborsMatching(ref map, default(NeighborCountVisitor), y, x);
-                neighborCounts[y, x] = (byte)neigh;
-                
+                var neigh = TwoDimUtils.CountNeighborsMatching(ref map, default(TileIsPaper), y, x);
                 if (neigh < 4)
                     toVisit.Enqueue((y, x));
+                else
+                    neighborCounts[y, x] = (byte)neigh;
             }
         }
 
