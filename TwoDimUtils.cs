@@ -18,7 +18,7 @@ public class TwoDimUtils
     public static void ForEachNeighbor<TChar, TVisitor>(ref Span2D<TChar> map, ref TVisitor visitor, int y, int x)
         where TVisitor : struct, ITileVisitor<TChar>, allows ref struct
     {
-        ref var middle = ref Unsafe.AsRef(in map[y, x]);
+        ref var middle = ref map[y, x];
         if (y > 0)
         {
             ref var el = ref Unsafe.Subtract(ref middle, map.Width);

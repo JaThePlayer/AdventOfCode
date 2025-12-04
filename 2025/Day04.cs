@@ -55,6 +55,11 @@ P2 microopts
 | Method | Mean     | Error   | StdDev  | Gen0   | Gen1   | Allocated |
 |------- |---------:|--------:|--------:|-------:|-------:|----------:|
 | Part2  | 208.8 us | 0.89 us | 0.74 us | 6.1035 | 0.7324 |  50.76 KB |
+
+| Method | Mean      | Error    | StdDev   | Gen0   | Gen1   | Allocated |
+|------- |----------:|---------:|---------:|-------:|-------:|----------:|
+| Part1  |  64.89 us | 0.577 us | 0.512 us |      - |      - |      24 B |
+| Part2  | 210.92 us | 1.327 us | 1.241 us | 6.1035 | 0.7324 |   51976 B |
 */
 public class Day04 : AdventBase
 {
@@ -74,9 +79,10 @@ public class Day04 : AdventBase
         
         for (var y = 0; y < map.Height; y++)
         {
-            for (var x = 0; x < map.Width - 1; x++)
+            var col = map.GetRowSpan(y);
+            for (var x = 0; x < col.Length - 1; x++)
             {
-                if (map[y, x] != '@')
+                if (col[x] != '@')
                     continue;
 
                 if (TwoDimUtils.CountNeighborsMatching(ref map, default(TileIsPaper), y, x) < 4)
@@ -106,9 +112,10 @@ public class Day04 : AdventBase
         
         for (var y = 0; y < map.Height; y++)
         {
-            for (var x = 0; x < map.Width - 1; x++)
+            var col = map.GetRowSpan(y);
+            for (var x = 0; x < col.Length - 1; x++)
             {
-                if (map[y, x] != '@')
+                if (col[x] != '@')
                     continue;
                 
                 var neigh = TwoDimUtils.CountNeighborsMatching(ref map, default(TileIsPaper), y, x);
