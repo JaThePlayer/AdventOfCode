@@ -84,10 +84,9 @@ public abstract class AdventBase
 
 public sealed class AdventFile(string path)
 {
-    private string? _text;
     private byte[]? _textU8;
     
-    public string Text => _text ??= File.ReadAllText(path).ReplaceLineEndings("\n");
+    public string Text => field ??= File.ReadAllText(path).ReplaceLineEndings("\n");
     public ReadOnlySpan<byte> TextU8 => _textU8 ??= Encoding.UTF8.GetBytes(Text);
     
     /// <summary>
@@ -99,5 +98,15 @@ public sealed class AdventFile(string path)
         var lineWidth = input.IndexOf((byte)'\n') + 1;
         
         return ReadOnlySpan2D<byte>.DangerousCreate(input[0], input.Length / lineWidth + 1, lineWidth, 0);
+    }
+    
+    public Span2D<byte> Create2DMutMap()
+    {
+        var input = TextU8;
+        Span<byte> inputMut = new byte[input.Length];
+        input.CopyTo(inputMut);
+        var lineWidth = input.IndexOf((byte)'\n') + 1;
+        
+        return Span2D<byte>.DangerousCreate(ref inputMut[0], input.Length / lineWidth + 1, lineWidth, 0);
     }
 }
