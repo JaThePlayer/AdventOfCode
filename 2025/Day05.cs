@@ -7,10 +7,16 @@ Initial
 | Part1  | 111.04 us | 0.665 us | 0.622 us | 0.9766 |   8.16 KB |
 | Part2  |  50.09 us | 0.807 us | 0.755 us | 2.0142 |  16.69 KB |
 
-D2: pre-sort the list
+P2: pre-sort the list
 | Method | Mean     | Error     | StdDev    | Gen0   | Gen1   | Allocated |
 |------- |---------:|----------:|----------:|-------:|-------:|----------:|
 | Part2  | 6.337 us | 0.1248 us | 0.1167 us | 0.9918 | 0.0153 |   8.16 KB |
+
+P1: new algo via sorting ranges and ids
+| Method | Mean     | Error    | StdDev   | Gen0   | Gen1   | Allocated |
+|------- |---------:|---------:|---------:|-------:|-------:|----------:|
+| Part1  | 25.22 us | 0.074 us | 0.062 us | 2.9602 | 0.1221 |  24.37 KB |
+
  */
 public class Day05 : AdventBase
 {
@@ -32,27 +38,47 @@ public class Day05 : AdventBase
             ranges.Add((left, right));
         }
 
-        var fresh = 0;
+        List<long> ids = [];
         while (lines.MoveNext())
         {
             var line = input[lines.Current];
             if (line.IsEmpty)
                 break;
-            
-            var id = Util.FastParseInt<long>(line);
+            ids.Add(Util.FastParseInt<long>(line));
+        }
+        
+        ranges.Sort((a, b) => a.start.CompareTo(b.start));
+        ids.Sort();
 
-            foreach (var (s, e) in ranges)
+        var fresh = 0;
+        var idIdx = 0;
+        var id = ids[idIdx];
+        var rangeIdx = 0;
+        var (start, end) = ranges[rangeIdx];
+        while (true)
+        {
+            while (id < start)
             {
-                if (s <= id && id <= e)
-                {
-                    fresh++;
+                if (++idIdx >= ids.Count)
                     break;
-                }
-                    
+                id = ids[idIdx];
             }
-        };
 
-        return fresh;
+            if (id > end)
+            {
+                if (++rangeIdx >= ranges.Count)
+                    break;
+                (start, end) = ranges[rangeIdx];
+                continue;
+            }
+
+            fresh++;
+            if (++idIdx >= ids.Count)
+                break;
+            id = ids[idIdx];
+        }
+
+        return fresh; // 615
     }
 
     protected override object Part2Impl()
@@ -78,8 +104,10 @@ public class Day05 : AdventBase
             prev = long.Max(prev, start);
             var amt = end - prev + 1;
             if (amt > 0)
+            {
                 fresh += amt;
-            prev = long.Max(prev, end + 1);
+                prev = end + 1;
+            }
         }
 
         return fresh; // 353716783056994
