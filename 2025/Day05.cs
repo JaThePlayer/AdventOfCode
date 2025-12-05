@@ -16,7 +16,6 @@ P1: new algo via sorting ranges and ids
 | Method | Mean     | Error    | StdDev   | Gen0   | Gen1   | Allocated |
 |------- |---------:|---------:|---------:|-------:|-------:|----------:|
 | Part1  | 25.22 us | 0.074 us | 0.062 us | 2.9602 | 0.1221 |  24.37 KB |
-
  */
 public class Day05 : AdventBase
 {
@@ -26,7 +25,6 @@ public class Day05 : AdventBase
     protected override object Part1Impl()
     {
         var input = Input.TextU8;
-
         var lines = input.Split((byte)'\n');
         List<(long start, long end)> ranges = [];
         while (lines.MoveNext())
