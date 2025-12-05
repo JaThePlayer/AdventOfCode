@@ -16,25 +16,38 @@ P1: new algo via sorting ranges and ids
 | Method | Mean     | Error    | StdDev   | Gen0   | Gen1   | Allocated |
 |------- |---------:|---------:|---------:|-------:|-------:|----------:|
 | Part1  | 25.22 us | 0.074 us | 0.062 us | 2.9602 | 0.1221 |  24.37 KB |
+
+Faster parsing (Util.FastParseIntPair)
+| Method | Mean      | Error     | StdDev    | Gen0   | Gen1   | Allocated |
+|------- |----------:|----------:|----------:|-------:|-------:|----------:|
+| Part1  | 25.205 us | 0.1079 us | 0.0901 us | 2.9602 | 0.1221 |  24.37 KB |
+| Part2  |  5.569 us | 0.0420 us | 0.0351 us | 0.9918 | 0.0153 |   8.16 KB |
  */
 public class Day05 : AdventBase
 {
     public override int Year => 2025;
     public override int Day => 5;
-    
-    protected override object Part1Impl()
+
+    protected List<(long start, long end)> ParseRanges(out MemoryExtensions.SpanSplitEnumerator<byte> lines)
     {
         var input = Input.TextU8;
-        var lines = input.Split((byte)'\n');
+        lines = input.Split((byte)'\n');
         List<(long start, long end)> ranges = [];
         while (lines.MoveNext())
         {
             var line = input[lines.Current];
             if (line.IsEmpty)
                 break;
-            line.ParseTwoSplits((byte)'-', Util.FastParseInt<long>, out var left, out var right);
-            ranges.Add((left, right));
+            ranges.Add(Util.FastParseIntPair<long, byte>(line, (byte)'-'));
         }
+
+        return ranges;
+    }
+    
+    protected override object Part1Impl()
+    {
+        var input = Input.TextU8;
+        var ranges = ParseRanges(out var lines);
 
         List<long> ids = [];
         while (lines.MoveNext())
@@ -81,18 +94,7 @@ public class Day05 : AdventBase
 
     protected override object Part2Impl()
     {
-        var input = Input.TextU8;
-
-        var lines = input.Split((byte)'\n');
-        List<(long start, long end)> ranges = [];
-        while (lines.MoveNext())
-        {
-            var line = input[lines.Current];
-            if (line.IsEmpty)
-                break;
-            line.ParseTwoSplits((byte)'-', Util.FastParseInt<long>, out var left, out var right);
-            ranges.Add((left, right));
-        }
+        var ranges = ParseRanges(out _);
 
         long fresh = 0;
         long prev = -1;

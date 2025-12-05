@@ -37,6 +37,29 @@ public static class Util
         return result;
     }
     
+    public static (T left, T right) FastParseIntPair<T, TChar>(ReadOnlySpan<TChar> input, TChar separator) 
+        where T : struct, IBinaryInteger<T>
+        where TChar : IBinaryInteger<TChar>
+    {
+        var ten = T.CreateTruncating(10);
+        var zero = TChar.CreateTruncating('0');
+
+        var left = T.Zero;
+        var right = T.Zero;
+        var i = 0;
+        while (i < input.Length)
+        {
+            var c = input[i++];
+            if (c == separator)
+                break;
+            left = left * ten + T.CreateTruncating(c - zero);
+        }
+        while (i < input.Length)
+            right = right * ten + T.CreateTruncating(input[i++] - zero);
+        
+        return (left, right);
+    }
+    
     
     public static T FastParse2DigitInt<T>(ReadOnlySpan<char> input) where T : IBinaryInteger<T>
     {

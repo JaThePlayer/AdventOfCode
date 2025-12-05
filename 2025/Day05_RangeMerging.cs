@@ -16,16 +16,7 @@ public class Day05_RangeMerging : Day05
     protected override object Part1Impl()
     {
         var input = Input.TextU8;
-        var lines = input.Split((byte)'\n');
-        List<(long start, long end)> ranges = [];
-        while (lines.MoveNext())
-        {
-            var line = input[lines.Current];
-            if (line.IsEmpty)
-                break;
-            line.ParseTwoSplits((byte)'-', Util.FastParseInt<long>, out var left, out var right);
-            ranges.Add((left, right));
-        }
+        var ranges = ParseRanges(out var lines);
         
         ranges.Sort((a, b) => a.start.CompareTo(b.start));
         ranges = MergeRanges(ranges);
