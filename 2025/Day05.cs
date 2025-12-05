@@ -6,6 +6,11 @@ Initial
 |------- |----------:|---------:|---------:|-------:|----------:|
 | Part1  | 111.04 us | 0.665 us | 0.622 us | 0.9766 |   8.16 KB |
 | Part2  |  50.09 us | 0.807 us | 0.755 us | 2.0142 |  16.69 KB |
+
+D2: pre-sort the list
+| Method | Mean     | Error     | StdDev    | Gen0   | Gen1   | Allocated |
+|------- |---------:|----------:|----------:|-------:|-------:|----------:|
+| Part2  | 6.337 us | 0.1248 us | 0.1167 us | 0.9918 | 0.0153 |   8.16 KB |
  */
 public class Day05 : AdventBase
 {
@@ -67,15 +72,14 @@ public class Day05 : AdventBase
 
         long fresh = 0;
         long prev = -1;
-        while (ranges.Count > 0)
+        ranges.Sort((a, b) => a.start.CompareTo(b.start));
+        foreach (var (start, end) in ranges)
         {
-            var smallest = ranges.MinBy(x => x.start);
-            prev = long.Max(prev, smallest.start);
-            var amt = smallest.end - prev + 1;
+            prev = long.Max(prev, start);
+            var amt = end - prev + 1;
             if (amt > 0)
                 fresh += amt;
-            prev = long.Max(prev, smallest.end + 1);
-            ranges.Remove(smallest);
+            prev = long.Max(prev, end + 1);
         }
 
         return fresh; // 353716783056994
