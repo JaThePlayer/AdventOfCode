@@ -13,6 +13,22 @@ P2: low-hanging fruit
 | Method | Mean     | Error   | StdDev  | Gen0    | Gen1    | Gen2    | Allocated |
 |------- |---------:|--------:|--------:|--------:|--------:|--------:|----------:|
 | Part2  | 111.7 us | 2.20 us | 2.36 us | 30.2734 | 30.2734 | 30.2734 | 210.62 KB |
+
+P1: rework
+| Method | Mean     | Error     | StdDev    | Gen0   | Gen1   | Allocated |
+|------- |---------:|----------:|----------:|-------:|-------:|----------:|
+| Part1  | 7.346 us | 0.0768 us | 0.0718 us | 2.4261 | 0.1831 |  19.91 KB |
+
+P1: optimised rework
+| Method | Mean     | Error     | StdDev    | Gen0   | Allocated |
+|------- |---------:|----------:|----------:|-------:|----------:|
+| Part1  | 3.001 us | 0.0279 us | 0.0261 us | 0.0229 |     192 B |
+
+P2 rework
+| Method | Mean     | Error     | StdDev    | Gen0   | Allocated |
+|------- |---------:|----------:|----------:|-------:|----------:|
+| Part1  | 2.980 us | 0.0059 us | 0.0049 us | 0.0229 |     192 B |
+| Part2  | 3.335 us | 0.0224 us | 0.0210 us | 0.1373 |    1176 B |
  */
 public class Day07 : AdventBase
 {
@@ -21,52 +37,28 @@ public class Day07 : AdventBase
     
     protected override object Part1Impl()
     {
-        var map = Input.Create2DMutMap();
-        ReadOnlySpan2D<byte> rmap = map;
-        
-        var (sx, sy) = rmap.IndexOf2D((byte)'S');
-        List<(int y, int x)> beams = [ (sy, sx)];
-        List<(int y, int x)> newBeams = [];
-
+        var map = Input.Create2DMap();
         var splits = 0;
         
-        while (beams.Count > 0)
-        {
-            newBeams.Clear();
-            var beamSpan = CollectionsMarshal.AsSpan(beams);
-            foreach (var (cy, cx) in beamSpan)
-            {
-                var ny = cy + 1;
-                if (ny >= map.Height)
-                    break;
+        var (sx, sy) = map.IndexOf2D((byte)'S');
 
-                if (map[ny, cx] == '^')
-                {
-                    var anyChange = false;
-                    if (cx > 0 && map[ny, cx - 1] == '.')
-                    {
-                        newBeams.Add((ny, cx - 1));
-                        map[ny, cx - 1] = (byte)'|';
-                        anyChange = true;
-                    }
-                    if (map[ny, cx + 1] == '.')
-                    {
-                        newBeams.Add((ny, cx + 1));
-                        map[ny, cx + 1] = (byte)'|';
-                        anyChange = true;
-                    }
-                    
-                    if (anyChange)
-                        splits++;
-                }
-                else
-                {
-                    newBeams.Add((ny, cx));
-                }
+        Span<bool> beams = new bool[map.Width - 1];
+        beams[sx] = true;
+        for (var y = sy + 2; y < map.Height; y += 2)
+        {
+            var row = map.GetRowSpan(y);
+            for (var x = row.IndexOf((byte)'^'); x < row.Length - 1; x += 2)
+            {
+                if (row[x] != '^' || !beams[x])
+                    continue;
+
+                if (x > 0)
+                    beams[x - 1] = true;
+                if (x < map.Width - 2)
+                    beams[x + 1] = true;
+                beams[x] = false;
+                splits++;
             }
-            
-            beams.Clear();
-            beams.AddRange(newBeams);
         }
 
         return splits; // 1550
@@ -75,33 +67,29 @@ public class Day07 : AdventBase
     protected override object Part2Impl()
     {
         var map = Input.Create2DMap();
+        long splits = 1;
         
         var (sx, sy) = map.IndexOf2D((byte)'S');
 
-        Dictionary<(int y, int x), long> cache = [];
-
-        return TravelFrom(map, sy + 2, sx); // 9897897326778
-
-        long TravelFrom(ReadOnlySpan2D<byte> map, int y, int x)
+        Span<long> beams = new long[map.Width - 1];
+        beams[sx] = 1;
+        for (var y = sy + 2; y < map.Height; y += 2)
         {
-            if (cache.TryGetValue((y, x), out var value))
-                return value;
-            
-            if (y >= map.Height)
-                return 1;
-
-            if (x < 0 || x >= map.Width - 1)
-                return 0;
-            
-            var c = map[y, x];
-            if (c == '^')
+            var row = map.GetRowSpan(y);
+            for (var x = row.IndexOf((byte)'^'); x < row.Length - 1; x += 2)
             {
-                var left = TravelFrom(map, y + 2, x - 1);
-                var right = TravelFrom(map, y + 2, x + 1);
-                return cache[(y, x)] = left + right;
-            }
+                if (row[x] != '^' || beams[x] <= 0)
+                    continue;
 
-            return cache[(y, x)] = TravelFrom(map, y + 2, x);
+                if (x > 0)
+                    beams[x - 1] += beams[x];
+                if (x < map.Width - 2)
+                    beams[x + 1] += beams[x];
+                splits += beams[x];
+                beams[x] = 0;
+            }
         }
+
+        return splits; // 9897897326778
     }
 }
