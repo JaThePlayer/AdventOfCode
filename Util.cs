@@ -132,6 +132,12 @@ public static class Util
         
         return (idx % span.Width, idx / span.Width);
     }
+    
+    public static int IndexOf1D<T>(this ReadOnlySpan2D<T> span, T value)
+        where T : IEquatable<T>
+    {
+        return MemoryMarshal.CreateReadOnlySpan(ref span.DangerousGetReference(), (int)span.Length).IndexOf(value);
+    }
 
     public static void Print2dMap(ReadOnlySpan2D<byte> map)
     {

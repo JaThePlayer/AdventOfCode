@@ -1,6 +1,3 @@
-using System.Runtime.InteropServices;
-using CommunityToolkit.HighPerformance;
-
 namespace AoC._2025;
 
 /*
@@ -40,11 +37,11 @@ public class Day07 : AdventBase
         var map = Input.Create2DMap();
         var splits = 0;
         
-        var (sx, sy) = map.IndexOf2D((byte)'S');
+        var sx = map.IndexOf1D((byte)'S');
 
         Span<bool> beams = new bool[map.Width - 1];
         beams[sx] = true;
-        for (var y = sy + 2; y < map.Height; y += 2)
+        for (var y = 2; y < map.Height; y += 2)
         {
             var row = map.GetRowSpan(y);
             for (var x = row.IndexOf((byte)'^'); x < row.Length - 1; x += 2)
@@ -69,11 +66,11 @@ public class Day07 : AdventBase
         var map = Input.Create2DMap();
         long splits = 1;
         
-        var (sx, sy) = map.IndexOf2D((byte)'S');
+        var sx = map.IndexOf1D((byte)'S');
 
         Span<long> beams = new long[map.Width - 1];
         beams[sx] = 1;
-        for (var y = sy + 2; y < map.Height; y += 2)
+        for (var y = 2; y < map.Height; y += 2)
         {
             var row = map.GetRowSpan(y);
             for (var x = row.IndexOf((byte)'^'); x < row.Length - 1; x += 2)
