@@ -8,6 +8,11 @@ namespace AoC._2025;
 |------- |----------:|---------:|---------:|--------:|--------:|--------:|----------:|
 | Part1  |  22.57 us | 0.130 us | 0.115 us |  2.9297 |  0.2136 |       - |  24.09 KB |
 | Part2  | 258.78 us | 5.008 us | 4.684 us | 90.8203 | 90.8203 | 90.8203 |  440.9 KB |
+
+P2: low-hanging fruit
+| Method | Mean     | Error   | StdDev  | Gen0    | Gen1    | Gen2    | Allocated |
+|------- |---------:|--------:|--------:|--------:|--------:|--------:|----------:|
+| Part2  | 111.7 us | 2.20 us | 2.36 us | 30.2734 | 30.2734 | 30.2734 | 210.62 KB |
  */
 public class Day07 : AdventBase
 {
@@ -75,7 +80,7 @@ public class Day07 : AdventBase
 
         Dictionary<(int y, int x), long> cache = [];
 
-        return TravelFrom(map, sy, sx); // 9897897326778
+        return TravelFrom(map, sy + 2, sx); // 9897897326778
 
         long TravelFrom(ReadOnlySpan2D<byte> map, int y, int x)
         {
@@ -91,12 +96,12 @@ public class Day07 : AdventBase
             var c = map[y, x];
             if (c == '^')
             {
-                var left = cache[(y + 1, x - 1)] = TravelFrom(map, y + 1, x - 1);
-                var right = cache[(y + 1, x + 1)] = TravelFrom(map, y + 1, x + 1);
-                return cache[(y + 1, x)] = left + right;
+                var left = TravelFrom(map, y + 2, x - 1);
+                var right = TravelFrom(map, y + 2, x + 1);
+                return cache[(y, x)] = left + right;
             }
 
-            return cache[(y + 1, x)] = TravelFrom(map, y + 1, x);
+            return cache[(y, x)] = TravelFrom(map, y + 2, x);
         }
     }
 }
