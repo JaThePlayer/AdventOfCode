@@ -133,6 +133,19 @@ public static class Util
         return (idx % span.Width, idx / span.Width);
     }
 
+    public static void Print2dMap(ReadOnlySpan2D<byte> map)
+    {
+        for (int y = 0; y < map.Height; y++)
+        {
+            for (int x = 0; x < map.Width; x++)
+            {
+                Console.Write((char)map[y, x]);
+            }
+
+            Console.WriteLine();
+        }
+    }
+
     public static void LogAsJson<T>(this T a)
     {
         Console.WriteLine(JsonSerializer.Serialize(a, _opts));

@@ -45,13 +45,14 @@ AdventBase[] days =
     new AoC._2025.Day04(),
     new AoC._2025.Day05(),
     new AoC._2025.Day06(),
+    new AoC._2025.Day07(),
 ];
 
 var day = days[^1];
 //Console.WriteLine(day.Part2());
 ;
 day.RunSafe();
-day.Benchmark();
+//day.Benchmark();
 
 return;
 
