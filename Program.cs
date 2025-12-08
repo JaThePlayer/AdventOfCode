@@ -46,13 +46,14 @@ AdventBase[] days =
     new AoC._2025.Day05(),
     new AoC._2025.Day06(),
     new AoC._2025.Day07(),
+    new AoC._2025.Day08(),
 ];
 
 var day = days[^1];
 //Console.WriteLine(day.Part2());
 ;
 day.RunSafe();
-//day.Benchmark();
+day.Benchmark();
 
 return;
 
@@ -82,6 +83,7 @@ display.Start(ctx =>
     //Parallel.ForEach(days, d =>
     {
         _ = d.Input.Text;
+        _ = d.Input.TextU8;
         var curr = Stopwatch.GetTimestamp();
         d.Part1();
         var p1Cold = Stopwatch.GetElapsedTime(curr);
