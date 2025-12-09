@@ -1,6 +1,4 @@
 using System.Drawing;
-using System.Numerics;
-using System.Runtime.InteropServices;
 
 namespace AoC._2025;
 
@@ -10,6 +8,12 @@ Initial
 |------- |---------:|--------:|--------:|-------:|----------:|
 | Part1  | 331.8 us | 1.63 us | 1.53 us | 0.9766 |   8.21 KB |
 | Part2  | 2 minutes 13 seconds                  | 100_000L * 100_000L => ~9,31 GiB
+
+Different part2, abusing its input layout, based on https://github.com/sehra/advent-of-code/blob/master/AdventOfCode/Year2025/Day9.cs
+| Method | Mean        | Error     | StdDev    | Gen0     | Gen1     | Gen2     | Allocated  |
+|------- |------------:|----------:|----------:|---------:|---------:|---------:|-----------:|
+| Part1  |    334.4 us |   1.63 us |   1.52 us |   0.9766 |        - |        - |    8.21 KB |
+| Part2  | 16,321.6 us | 152.64 us | 135.31 us | 968.7500 | 968.7500 | 968.7500 | 6168.93 KB |
  */
 public class Day09 : AdventBase
 {
@@ -39,33 +43,81 @@ public class Day09 : AdventBase
                 var b = points[j];
                 
                 var area = (long.Abs(a.x - b.x) + 1) * (long.Abs(a.y - b.y) + 1);
-                //Console.WriteLine((a, b, area));
                 maxArea = long.Max(maxArea, area);
             }
         }
 
         return maxArea; // 4763040296
     }
-    
-    public long Get1dLoc(long x, long y, int gridWidth) {
-        return x + y * gridWidth;
-    }
-    
-    public Point Get2dLoc(int index, int gridWidth) {
-        (int q, int r) = int.DivRem(index, gridWidth);
+
+    private Rectangle MakeRect(Point a, Point b)
+    {
+        var ax = a.X;
+        var ay = a.Y;
+        var bx = b.X;
+        var by = b.Y;
         
-        return new(r, q);
+        if (ax > bx)
+            (ax, bx) = (bx, ax);
+        if (ay > by)
+            (ay, by) = (by, ay);
+
+        return new Rectangle(ax, ay, bx - ax, by - ay);
     }
     
     protected override unsafe object Part2Impl()
     {
+        List<Point> points = [];
+        var input = Input.TextU8;
+        
+        foreach (var lineRange in input.Split((byte)'\n'))
+        {
+            var (x, y) = Util.FastParseIntPair<int, byte>(input[lineRange], (byte)',');
+            points.Add(new(x, y));
+        }
+
+        var lines = points
+            .Select((t, i) => MakeRect(t, points[(i + 1) % points.Count]))
+            .ToList();
+
+        List<(Rectangle, long Area)> areas = [];
+        for (var i = 0; i < points.Count; i++)
+        {
+            var a = points[i];
+            for (var j = i; j < points.Count; j++)
+            {
+                var b = points[j];
+                
+                var area = (long.Abs(a.X - b.X) + 1) * (long.Abs(a.Y - b.Y) + 1);
+                areas.Add((MakeRect(a, b), area));
+            }
+        }
+        areas.Sort((a, b) => b.Area.CompareTo(a.Area));
+        foreach (var area in areas)
+        {
+            var valid = true;
+            foreach (var line in lines)
+            {
+                if (line.IntersectsWith(area.Item1))
+                {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid)
+                return area.Area; // 1396494456
+        }
+
+        return -1;
+        /*
         const int gw = 100_000;
         var bits = (byte*)NativeMemory.AllocZeroed((nuint)(100_000L * 100_000L));
-        
+
         List<(long X, long Y)> points = [];
         var input = Input.TextU8;
         Span<int> numberBuffer = stackalloc int[2];
-        
+
         foreach (var lineRange in input.Split((byte)'\n'))
         {
             var line = input[lineRange];
@@ -73,6 +125,7 @@ public class Day09 : AdventBase
             points.Add(new(numberBuffer[0], numberBuffer[1]));
         }
 
+        // adapted from https://www.jeffreythompson.org/collision-detection/poly-rect.php out of laziness but the actual algo from there goes unused...
         var next = 0;
         for (int current=0; current<points.Count; current++) {
 
@@ -93,7 +146,7 @@ public class Day09 : AdventBase
         }
 
         Console.WriteLine($"[{DateTime.Now}] flood");
-        FloodFill((int)points[0].X + 1, (int)points[0].Y - 1, 
+        FloodFill((int)points[0].X + 1, (int)points[0].Y - 1,
             (x, y) => x>=0&&y>=0&&x<gw&&y<gw&& bits[Get1dLoc(x, y, gw)] == 0,
             set: (x, y) => bits[Get1dLoc(x, y, gw)] = 2);
         Console.WriteLine($"[{DateTime.Now}] flood end");
@@ -107,9 +160,8 @@ public class Day09 : AdventBase
 
             Console.WriteLine();
         }
-        
+
         long maxArea = -1;
-        List<Vector2> points2d = points.Select(x => new Vector2(x.X, x.Y)).ToList();
         for (int i = 0; i < points.Count; i++)
         {
             var a = points[i];
@@ -119,21 +171,24 @@ public class Day09 : AdventBase
                 var b = points[j];
                 var w = long.Abs(a.X - b.X) + 1;
                 var h = long.Abs(a.Y - b.Y) + 1;
-                
+
                 var area = (w * h);
-                if (area > maxArea 
-                    && bits[Get1dLoc(b.X, a.Y, gw)] != 0 
+                if (area > maxArea
+                    && bits[Get1dLoc(b.X, a.Y, gw)] != 0
                     && bits[Get1dLoc(a.X, b.Y, gw)] != 0
                     )
                 {
                     var valid = true;
-                    for (long x = long.Min(a.X, b.X); valid && x <= long.Max(a.X, b.X); x++)
                     for (long y = long.Min(a.Y, b.Y); y <= long.Max(a.Y, b.Y); y++)
-                        if (bits[Get1dLoc(x, y, gw)] == 0)
-                        {
-                            valid = false;
-                            break;
-                        }
+                    {
+                        for (long x = long.Min(a.X, b.X); valid && x <= long.Max(a.X, b.X); x++)
+                            if (bits[Get1dLoc(x, y, gw)] == 0)
+                            {
+                                valid = false;
+                                break;
+                            }
+                    }
+
 
                     if (valid)
                     {
@@ -143,8 +198,19 @@ public class Day09 : AdventBase
                 }
             }
         }
-        
+
         return maxArea; // 1396494456 // [90312, 15463]: (4658, 65554) + (94969, 50092) ... in 2 minutes
+        
+        public static long Get1dLoc(long x, long y, int gridWidth) {
+            return x + y * gridWidth;
+        }
+        
+        public static Point Get2dLoc(int index, int gridWidth) {
+            (int q, int r) = int.DivRem(index, gridWidth);
+            
+            return new(r, q);
+        }
+        */
     }
     
     // https://en.wikipedia.org/wiki/Flood_fill#Span_filling
