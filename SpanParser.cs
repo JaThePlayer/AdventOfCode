@@ -78,6 +78,19 @@ internal ref struct SpanParser(ReadOnlySpan<char> input)
         return ret;
     }
     
+    public ReadOnlySpan<char> ReadStrUntil(ReadOnlySpan<char> until)
+    {
+        var rem = _remaining;
+        var len = rem.IndexOf(until);
+        if (len == -1)
+            return ReadSliceStr(rem.Length);
+        
+        var ret = ReadSliceStr(len);
+        _remaining = _remaining[until.Length..];
+
+        return ret;
+    }
+    
     public ReadOnlySpan<char> ReadStrUntilAny(ReadOnlySpan<char> until)
     {
         var rem = _remaining;
@@ -316,6 +329,19 @@ internal ref struct SpanParserU8(ReadOnlySpan<byte> input)
         
         var ret = ReadSliceStr(len);
         _remaining = _remaining[1..];
+
+        return ret;
+    }
+    
+    public ReadOnlySpan<byte> ReadStrUntil(ReadOnlySpan<byte> until)
+    {
+        var rem = _remaining;
+        var len = rem.IndexOf(until);
+        if (len == -1)
+            return ReadSliceStr(rem.Length);
+        
+        var ret = ReadSliceStr(len);
+        _remaining = _remaining[until.Length..];
 
         return ret;
     }

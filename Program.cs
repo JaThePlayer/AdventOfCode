@@ -50,6 +50,7 @@ AdventBase[] days =
     new AoC._2025.Day09(),
     new AoC._2025.Day10(),
     new AoC._2025.Day11(),
+    new AoC._2025.Day12(),
 ];
 
 var day = days[^1];

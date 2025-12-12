@@ -105,6 +105,32 @@ public static class Util
         return buffer[..i];
     }
     
+    public static List<T> FastParseIntList<T, TChar>(ReadOnlySpan<TChar> input, TChar separator) 
+        where T : IBinaryInteger<T>
+        where TChar : IBinaryInteger<TChar>
+    {
+        var i = 0;
+        var value = T.Zero;
+        var zero = TChar.CreateTruncating('0');
+        var into = new List<T>();
+            
+        foreach (var c in input)
+        {
+            if (c == separator)
+            {
+                into.Add(value);
+                value = T.Zero;
+            }
+            else
+            {
+                value = value * T.CreateTruncating(10) + T.CreateTruncating(c - zero);
+            }
+        }
+        into.Add(value);
+
+        return into;
+    }
+    
     /// <summary>
     /// Parse a list of integers into the given buffer.
     /// Assumes input is correct: 01,2 3,45
@@ -146,6 +172,19 @@ public static class Util
             for (int x = 0; x < map.Width; x++)
             {
                 Console.Write((char)map[y, x]);
+            }
+
+            Console.WriteLine();
+        }
+    }
+    
+    public static void Print2dMap(ReadOnlySpan2D<char> map)
+    {
+        for (int y = 0; y < map.Height; y++)
+        {
+            for (int x = 0; x < map.Width; x++)
+            {
+                Console.Write(map[y, x]);
             }
 
             Console.WriteLine();
